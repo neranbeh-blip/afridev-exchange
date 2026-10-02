@@ -1,0 +1,16 @@
+profiles
+skills
+developer_skills
+skill_evidence
+offers
+needs
+matches
+exchanges
+projects
+project_applications
+contributions
+contribution_validations
+problems
+conversations
+messages
+notifications
