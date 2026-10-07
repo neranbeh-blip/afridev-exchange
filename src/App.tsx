@@ -1,105 +1,126 @@
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { Route, Routes } from "react-router-dom";
 
 import AppShell from "./components/layout/AppShell";
+import ProtectedRoute from "./components/auth/ProtectedRoute";
+
+import Landing from "./pages/Landing";
+
+import Dashboard from "./pages/dashboard/Dashboard";
+import Discover from "./pages/discover/Discover";
+
+import Exchange from "./pages/exchange/Exchange";
+import ExchangeWorkspace from "./pages/exchange/ExchangeWorkspace";
+
+import Passport from "./pages/passport/Passport";
+import PublicPassport from "./pages/passport/PublicPassport";
+
+import EvidenceVerification from "./pages/admin/EvidenceVerification";
+
+import Projects from "./pages/projects/Projects";
+import ProjectDetails from "./pages/projects/ProjectDetails";
+import ProjectWorkspace from "./pages/projects/ProjectWorkspace";
+
+import Notifications from "./pages/notifications/Notifications";
+
+import Problems from "./pages/problems/Problems";
+import ProblemDetails from "./pages/problems/ProblemDetails";
+
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
-import Dashboard from "./pages/dashboard/Dashboard";
-
-function Placeholder({ title }: { title: string }) {
-  return (
-    <div className="mx-auto max-w-7xl px-6 py-10">
-      <h1 className="text-3xl font-bold text-slate-950">
-        {title}
-      </h1>
-
-      <p className="mt-2 text-slate-500">
-        This section is coming next.
-      </p>
-    </div>
-  );
-}
 
 function App() {
   return (
-    <BrowserRouter>
+    <Routes>
+      {/* =====================================================
+          PUBLIC ROUTES
+      ===================================================== */}
 
-      <Routes>
+      {/* Landing Page */}
+      <Route path="/" element={<Landing />} />
 
-        {/* Public routes */}
+      {/* Authentication */}
+      <Route path="/login" element={<Login />} />
+      <Route path="/register" element={<Register />} />
+
+      {/* Public Developer Passport */}
+      <Route
+        path="/developer/:developerId"
+        element={<PublicPassport />}
+      />
+
+      {/* =====================================================
+          PROTECTED APPLICATION
+      ===================================================== */}
+
+      <Route
+        element={
+          <ProtectedRoute>
+            <AppShell />
+          </ProtectedRoute>
+        }
+      >
+        {/* Dashboard */}
+        <Route path="/dashboard" element={<Dashboard />} />
+
+        {/* Discover */}
+        <Route path="/discover" element={<Discover />} />
+
+        {/* Projects */}
+        <Route path="/projects" element={<Projects />} />
 
         <Route
-          path="/login"
-          element={<Login />}
+          path="/projects/:projectId"
+          element={<ProjectDetails />}
         />
 
         <Route
-          path="/register"
-          element={<Register />}
+          path="/projects/:projectId/workspace"
+          element={<ProjectWorkspace />}
         />
 
-
-        {/* Application */}
-
-        <Route element={<AppShell />}>
-
-          <Route
-            path="/dashboard"
-            element={<Dashboard />}
-          />
-
-          <Route
-            path="/discover"
-            element={<Placeholder title="Discover" />}
-          />
-
-          <Route
-            path="/exchange"
-            element={<Placeholder title="Exchange" />}
-          />
-
-          <Route
-            path="/projects"
-            element={<Placeholder title="Projects" />}
-          />
-
-          <Route
-            path="/messages"
-            element={<Placeholder title="Messages" />}
-          />
-
-          <Route
-            path="/passport"
-            element={<Placeholder title="Developer Passport" />}
-          />
-
-          <Route
-            path="/notifications"
-            element={<Placeholder title="Notifications" />}
-          />
-
-          <Route
-            path="/settings"
-            element={<Placeholder title="Settings" />}
-          />
-
-        </Route>
-
-
-        {/* Default */}
+        {/* Problems */}
+        <Route path="/problems" element={<Problems />} />
 
         <Route
-          path="/"
-          element={<Navigate to="/login" replace />}
+          path="/problems/:problemId"
+          element={<ProblemDetails />}
+        />
+
+        {/* Exchange */}
+        <Route path="/exchange" element={<Exchange />} />
+
+        <Route
+          path="/exchange/workspace/:exchangeId"
+          element={<ExchangeWorkspace />}
         />
 
         <Route
-          path="*"
-          element={<Navigate to="/dashboard" replace />}
+          path="/exchange/:exchangeId"
+          element={<ExchangeWorkspace />}
         />
 
-      </Routes>
+        {/* Developer Passport */}
+        <Route path="/passport" element={<Passport />} />
 
-    </BrowserRouter>
+        {/* Evidence Verification */}
+        <Route
+          path="/admin/evidence"
+          element={<EvidenceVerification />}
+        />
+
+        {/* Notifications */}
+        <Route
+          path="/notifications"
+          element={<Notifications />}
+        />
+      </Route>
+
+      {/* =====================================================
+          UNKNOWN ROUTES
+      ===================================================== */}
+
+      <Route path="*" element={<Landing />} />
+    </Routes>
   );
 }
 

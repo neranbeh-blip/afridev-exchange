@@ -24,3 +24,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Local development files
+.vscode/
+supabase/.temp/
+*.lnk
