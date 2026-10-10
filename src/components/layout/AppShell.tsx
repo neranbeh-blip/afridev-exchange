@@ -1,6 +1,7 @@
 import {
   Bell,
   CheckCheck,
+  ChevronRight,
   Code2,
   Compass,
   ExternalLink,
@@ -101,6 +102,11 @@ const navigation = [
     icon: Code2,
   },
   {
+    label: "Completed Projects",
+    path: "/completed-projects",
+    icon: Code2,
+  },
+  {
     label: "Messages",
     path: "/messages",
     icon: MessageSquare,
@@ -121,6 +127,36 @@ const navigation = [
     icon: Bell,
   },
 ];
+
+const navigationGroups = [
+  {
+    label: "Overview",
+    description: "Your workspace",
+    items: navigation.filter((item) => item.path === "/dashboard"),
+  },
+  {
+    label: "Discover & Connect",
+    description: "People and collaboration",
+    items: navigation.filter((item) =>
+      ["/discover", "/exchange", "/messages"].includes(item.path)
+    ),
+  },
+  {
+    label: "Build & Solve",
+    description: "Projects and challenges",
+    items: navigation.filter((item) =>
+      ["/problems", "/projects", "/completed-projects"].includes(item.path)
+    ),
+  },
+  {
+    label: "Trust & Updates",
+    description: "Identity and activity",
+    items: navigation.filter((item) =>
+      ["/passport", "/admin/evidence", "/notifications"].includes(item.path)
+    ),
+  },
+];
+
 
 function AppShell() {
   const navigate = useNavigate();
@@ -399,92 +435,65 @@ function AppShell() {
 
           {/* BRAND */}
 
-          <div className="flex h-20 items-center gap-3 border-b border-white/10 px-6">
-
-            <div className="flex items-center">
-              <img
-                src={afridevLogo}
-                alt="AfriDev Developer Exchange"
-                className="h-11 w-auto max-w-[190px] object-contain"
-              />
+          <div className="flex min-h-24 items-center gap-3 border-b border-white/10 px-4 py-3">
+            <img
+              src={afridevLogo}
+              alt="AfriDev Developer Exchange logo"
+              className="h-10 w-[104px] shrink-0 object-contain object-left"
+            />
+            <div className="min-w-0 border-l border-white/15 pl-3">
+              <p className="text-[11px] font-bold leading-4 text-white">
+                African Developer Network
+              </p>
+              <p className="mt-1 text-[10px] leading-[1.35] text-slate-400">
+                Exchange skills. Build together. Prove your impact.
+              </p>
             </div>
-
           </div>
 
           {/* NAVIGATION */}
 
-          <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-6">
-
-            <p className="mb-3 px-3 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
-              Workspace
-            </p>
-
-            {navigation
-              .slice(0, 6)
-              .map((item) => {
-                const Icon = item.icon;
-
-                return (
-                  <NavLink
-                    key={item.path}
-                    to={item.path}
-                    className={({ isActive }) =>
-                      `flex items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-semibold transition ${
-                        isActive
-                          ? "bg-blue-600 text-white shadow-lg shadow-blue-950/20"
-                          : "text-slate-300 hover:bg-white/5 hover:text-white"
-                      }`
-                    }
-                  >
-                    <Icon size={18} />
-                    {item.label}
-                  </NavLink>
-                );
-              })}
-
-            <p className="mb-3 mt-7 px-3 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
-              Identity & Trust
-            </p>
-
-            {navigation
-              .slice(6)
-              .map((item) => {
-                const Icon = item.icon;
-
-                return (
-                  <NavLink
-                    key={item.path}
-                    to={item.path}
-                    className={({ isActive }) =>
-                      `flex items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-semibold transition ${
-                        isActive
-                          ? "bg-blue-600 text-white shadow-lg shadow-blue-950/20"
-                          : "text-slate-300 hover:bg-white/5 hover:text-white"
-                      }`
-                    }
-                  >
-                    <Icon size={18} />
-                    {item.label}
-                  </NavLink>
-                );
-              })}
-
+          <nav className="flex-1 space-y-6 overflow-y-auto px-3 py-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {navigationGroups.map((group) => (
+              <section key={group.label} aria-label={group.label}>
+                <div className="mb-2 flex items-start gap-2 px-3">
+                  <span className="mt-1 h-4 w-1 shrink-0 rounded-full bg-cyan-400/80" />
+                  <div>
+                    <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-200">
+                      {group.label}
+                    </p>
+                    <p className="mt-0.5 text-[10px] leading-4 text-slate-500">
+                      {group.description}
+                    </p>
+                  </div>
+                </div>
+                <div className="ml-3 space-y-1 border-l border-white/10 pl-2">
+                  {group.items.map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <NavLink
+                        key={item.path}
+                        to={item.path}
+                        className={({ isActive }) =>
+                          `group flex items-center gap-3 rounded-r-xl border-l-2 px-3 py-2.5 text-sm font-semibold transition ${
+                            isActive
+                              ? "-ml-[3px] border-cyan-300 bg-gradient-to-r from-cyan-400/20 via-blue-500/10 to-transparent text-white shadow-[inset_0_0_0_1px_rgba(34,211,238,0.08)]"
+                              : "border-transparent text-slate-400 hover:border-slate-600 hover:bg-white/[0.04] hover:text-white"
+                          }`
+                        }
+                      >
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/[0.04] text-slate-400 transition group-hover:bg-white/[0.08] group-hover:text-cyan-200">
+                          <Icon size={17} />
+                        </span>
+                        <span className="min-w-0 flex-1">{item.label}</span>
+                        <ChevronRight size={13} className="shrink-0 opacity-0 transition group-hover:opacity-70" />
+                      </NavLink>
+                    );
+                  })}
+                </div>
+              </section>
+            ))}
           </nav>
-
-          {/* NETWORK CARD */}
-
-          <div className="mx-3 mb-3 rounded-2xl border border-white/10 bg-white/5 p-4">
-
-            <p className="text-xs font-bold text-white">
-              African Developer Network
-            </p>
-
-            <p className="mt-1 text-xs leading-5 text-slate-400">
-              Exchange skills. Build together.
-              Prove your impact.
-            </p>
-
-          </div>
 
           {/* SETTINGS + SIGN OUT */}
 
@@ -539,14 +548,21 @@ function AppShell() {
 
             {/* MOBILE BRAND */}
 
-            <div className="flex h-20 items-center justify-between border-b border-white/10 px-5">
-
-              <div className="flex items-center">
+            <div className="flex min-h-24 items-center justify-between gap-2 border-b border-white/10 px-3 py-3">
+              <div className="flex min-w-0 items-center gap-2">
                 <img
                   src={afridevLogo}
-                  alt="AfriDev Developer Exchange"
-                  className="h-11 w-auto max-w-[190px] object-contain"
+                  alt="AfriDev Developer Exchange logo"
+                  className="h-9 w-[92px] shrink-0 object-contain object-left"
                 />
+                <div className="min-w-0 border-l border-white/15 pl-2">
+                  <p className="text-[10px] font-bold leading-4 text-white">
+                    African Developer Network
+                  </p>
+                  <p className="mt-0.5 text-[9px] leading-[1.35] text-slate-400">
+                    Exchange skills. Build together. Prove your impact.
+                  </p>
+                </div>
               </div>
 
               <button
@@ -564,68 +580,46 @@ function AppShell() {
 
             {/* MOBILE NAV */}
 
-            <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-6">
-
-              <p className="mb-3 px-3 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
-                Workspace
-              </p>
-
-              {navigation
-                .slice(0, 6)
-                .map((item) => {
-                  const Icon = item.icon;
-
-                  return (
-                    <NavLink
-                      key={item.path}
-                      to={item.path}
-                      onClick={() =>
-                        setMobileMenuOpen(false)
-                      }
-                      className={({ isActive }) =>
-                        `flex items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-semibold ${
-                          isActive
-                            ? "bg-blue-600 text-white"
-                            : "text-slate-300 hover:bg-white/5 hover:text-white"
-                        }`
-                      }
-                    >
-                      <Icon size={18} />
-                      {item.label}
-                    </NavLink>
-                  );
-                })}
-
-              <p className="mb-3 mt-7 px-3 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
-                Identity & Trust
-              </p>
-
-              {navigation
-                .slice(6)
-                .map((item) => {
-                  const Icon = item.icon;
-
-                  return (
-                    <NavLink
-                      key={item.path}
-                      to={item.path}
-                      onClick={() =>
-                        setMobileMenuOpen(false)
-                      }
-                      className={({ isActive }) =>
-                        `flex items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-semibold ${
-                          isActive
-                            ? "bg-blue-600 text-white"
-                            : "text-slate-300 hover:bg-white/5 hover:text-white"
-                        }`
-                      }
-                    >
-                      <Icon size={18} />
-                      {item.label}
-                    </NavLink>
-                  );
-                })}
-
+            <nav className="flex-1 space-y-5 overflow-y-auto px-3 py-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {navigationGroups.map((group) => (
+                <section key={group.label} aria-label={group.label}>
+                  <div className="mb-2 flex items-start gap-2 px-3">
+                    <span className="mt-1 h-4 w-1 shrink-0 rounded-full bg-cyan-400/80" />
+                    <div>
+                      <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-200">
+                        {group.label}
+                      </p>
+                      <p className="mt-0.5 text-[10px] leading-4 text-slate-500">
+                        {group.description}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="ml-3 space-y-1 border-l border-white/10 pl-2">
+                    {group.items.map((item) => {
+                      const Icon = item.icon;
+                      return (
+                        <NavLink
+                          key={item.path}
+                          to={item.path}
+                          onClick={() => setMobileMenuOpen(false)}
+                          className={({ isActive }) =>
+                            `flex items-center gap-3 rounded-r-xl border-l-2 px-3 py-2.5 text-sm font-semibold transition ${
+                              isActive
+                                ? "-ml-[3px] border-cyan-300 bg-gradient-to-r from-cyan-400/20 via-blue-500/10 to-transparent text-white"
+                                : "border-transparent text-slate-400 hover:border-slate-600 hover:bg-white/[0.04] hover:text-white"
+                            }`
+                          }
+                        >
+                          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/[0.04] text-slate-400">
+                            <Icon size={17} />
+                          </span>
+                          <span className="min-w-0 flex-1">{item.label}</span>
+                        </NavLink>
+                      );
+                    })}
+                  </div>
+                </section>
+              ))}
             </nav>
 
             {/* MOBILE SETTINGS */}
@@ -769,7 +763,7 @@ function AppShell() {
 
                   </div>
 
-                  <div className="max-h-[28rem] overflow-y-auto">
+                  <div className="max-h-[28rem] overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
 
                     {notifications.length ===
                     0 ? (
@@ -896,25 +890,30 @@ function AppShell() {
 
             {/* USER */}
 
-            <div className="flex items-center gap-3">
-
-              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-100 text-sm font-extrabold text-blue-700">
+            <button
+              type="button"
+              onClick={() => {
+                setMobileMenuOpen(false);
+                setNotificationsOpen(false);
+                navigate("/passport");
+              }}
+              aria-label="Open your Developer Passport"
+              title="Open Developer Passport"
+              className="group flex min-w-0 items-center gap-3 rounded-2xl border border-transparent px-2 py-1.5 text-left transition hover:border-cyan-100 hover:bg-cyan-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500"
+            >
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-100 text-sm font-extrabold text-blue-700 transition group-hover:bg-cyan-100 group-hover:text-cyan-800">
                 {initials}
               </div>
 
-              <div className="hidden sm:block">
-
+              <div className="hidden min-w-0 sm:block">
                 <p className="max-w-[180px] truncate text-sm font-bold text-slate-950">
                   {displayName}
                 </p>
-
                 <p className="text-xs text-slate-500">
                   {displayCountry}
                 </p>
-
               </div>
-
-            </div>
+            </button>
 
           </div>
 

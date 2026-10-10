@@ -715,7 +715,7 @@ function ProjectDetails() {
   );
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
+    <div className="mx-auto w-full min-w-0 max-w-5xl overflow-x-clip px-3 py-6 sm:px-6 sm:py-8 lg:px-8">
       <Link
         to="/projects"
         className="inline-flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-blue-700"
@@ -733,14 +733,14 @@ function ProjectDetails() {
       <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="border-b border-slate-100 bg-gradient-to-r from-blue-50 to-white p-6 sm:p-8">
           <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
-            <div className="flex gap-4">
+            <div className="flex min-w-0 gap-3 sm:gap-4">
               <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-blue-700 text-white">
                 <FolderKanban size={25} />
               </div>
 
-              <div>
+              <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <h1 className="text-2xl font-bold text-slate-950 sm:text-3xl">
+                  <h1 className="break-words [overflow-wrap:anywhere] text-2xl font-bold text-slate-950 sm:text-3xl">
                     {project.title}
                   </h1>
                   <StatusBadge status={project.status} />
@@ -761,13 +761,13 @@ function ProjectDetails() {
           </div>
         </div>
 
-        <div className="grid gap-8 p-6 sm:p-8 lg:grid-cols-[1fr_300px]">
+        <div className="grid min-w-0 gap-5 p-4 sm:gap-8 sm:p-8 lg:grid-cols-[minmax(0,1fr)_300px]">
           <div>
             <h2 className="text-sm font-bold uppercase tracking-wide text-slate-400">
               About this project
             </h2>
 
-            <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-slate-700">
+            <p className="mt-3 whitespace-pre-wrap break-words [overflow-wrap:anywhere] text-sm leading-7 text-slate-700">
               {project.description}
             </p>
 

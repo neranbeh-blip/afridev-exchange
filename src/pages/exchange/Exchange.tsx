@@ -1158,9 +1158,25 @@ function ExchangeRequests() {
     );
   }
 
-  const incoming = items.filter((x) => x.incoming);
-  const active = items.filter((x) => ["negotiating", "accepted", "active"].includes(x.status));
-  const completed = items.filter((x) => x.status === "completed");
+  const incoming = items.filter(
+    (x) => x.incoming && x.status === "pending"
+  );
+
+  const outgoing = items.filter(
+    (x) =>
+      x.currentRole === "owner" &&
+      x.status === "pending"
+  );
+
+  const active = items.filter((x) =>
+    ["negotiating", "accepted", "active"].includes(
+      x.status
+    )
+  );
+
+  const completed = items.filter(
+    (x) => x.status === "completed"
+  );
 
   return (
     <>
@@ -1177,7 +1193,8 @@ function ExchangeRequests() {
               </div>
             </div>
             <p className="mt-3 text-sm leading-6 text-slate-500">
-              Manage exchange requests, collaborations and completed exchanges.
+              See requests you sent, requests you received,
+              active collaborations and completed exchanges.
             </p>
           </div>
 
@@ -1209,6 +1226,25 @@ function ExchangeRequests() {
               onAccept={() => updateStatus(exchange, "accepted")}
               onNegotiate={() => updateStatus(exchange, "negotiating")}
               onReject={() => updateStatus(exchange, "cancelled")}
+            />
+          ))}
+        </ExchangeSection>
+
+        <ExchangeSection
+          title="Pending Sent Exchanges"
+          description="Exchange requests you have sent and are waiting for the other developer to respond to."
+          empty="You have no pending sent exchanges."
+          count={outgoing.length}
+        >
+          {outgoing.map((exchange) => (
+            <SentRequestCard
+              key={exchange.id}
+              exchange={exchange}
+              loading={actionId === exchange.id}
+              onView={() => setSelected(exchange)}
+              onCancel={() =>
+                updateStatus(exchange, "cancelled")
+              }
             />
           ))}
         </ExchangeSection>
@@ -1324,6 +1360,90 @@ function RequestCard({ exchange, loading, onView, onAccept, onNegotiate, onRejec
   );
 }
 
+function SentRequestCard({
+  exchange,
+  loading,
+  onView,
+  onCancel,
+}: {
+  exchange: ExchangeView;
+  loading: boolean;
+  onView: () => void;
+  onCancel: () => void;
+}) {
+  const developer = exchange.otherDeveloper;
+
+  return (
+    <div className="rounded-2xl border border-blue-200 bg-blue-50/50 p-5">
+      <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+        <div className="min-w-0">
+          <p className="text-xs font-bold uppercase tracking-wide text-blue-600">
+            Exchange request sent
+          </p>
+
+          <div className="mt-2 flex items-center gap-3">
+            <Avatar profile={developer} />
+
+            <div className="min-w-0">
+              <h4 className="truncate font-bold text-slate-950">
+                {developer?.full_name || "Developer"}
+              </h4>
+
+              {developer?.username && (
+                <p className="text-xs text-slate-500">
+                  @{developer.username}
+                </p>
+              )}
+            </div>
+          </div>
+
+          <h5 className="mt-4 font-semibold text-slate-900">
+            {exchange.title}
+          </h5>
+
+          <p className="mt-2 text-sm leading-6 text-slate-600">
+            {exchange.description ||
+              exchange.match?.explanation ||
+              "Your exchange request is waiting for a response."}
+          </p>
+
+          <div className="mt-4 flex flex-wrap gap-2">
+            <span className="rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-blue-700">
+              {Math.round(
+                exchange.match?.compatibility_score || 0
+              )}
+              % compatibility
+            </span>
+
+            <span className="rounded-full bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700">
+              Pending response
+            </span>
+          </div>
+        </div>
+
+        <div className="flex shrink-0 flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={onView}
+            className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+          >
+            View Request
+          </button>
+
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={loading}
+            className="rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"
+          >
+            {loading ? "Cancelling..." : "Cancel Request"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function WorkspaceCard({
   exchange,
   loading,
@@ -1359,7 +1479,9 @@ function WorkspaceCard({
           onClick={() => navigate(`/exchange/workspace/${exchange.id}`)}
           className="flex-1 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
         >
-          Open Workspace
+          {exchange.status === "accepted"
+            ? "Open Exchange"
+            : "Open Workspace"}
         </button>
         {exchange.status === "accepted" && <button type="button" onClick={onStart} disabled={loading} className="flex-1 rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-800 disabled:opacity-50">{loading ? "Starting..." : "Start Collaboration"}</button>}
         {exchange.status === "active" && <button type="button" onClick={onComplete} disabled={loading} className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-50">{loading ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}Complete</button>}

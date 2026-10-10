@@ -6,6 +6,7 @@ import {
   Loader2,
   Plus,
   Search,
+  Trash2,
   Users,
   XCircle,
 } from "lucide-react";
@@ -17,6 +18,7 @@ import { supabase } from "../../lib/supabase";
 
 type ProjectStatus = "idea" | "open" | "in_progress" | "completed";
 type ApplicationStatus = "pending" | "accepted" | "rejected";
+type ProjectVisibility = "public" | "private";
 
 type Skill = {
   id: string;
@@ -30,6 +32,7 @@ type Project = {
   title: string;
   description: string;
   status: ProjectStatus;
+  visibility: ProjectVisibility;
   repository_url: string | null;
   demo_url: string | null;
   created_at: string;
@@ -71,6 +74,7 @@ function Projects() {
 
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
+  const [deletingProjectId, setDeletingProjectId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
 
@@ -79,6 +83,7 @@ function Projects() {
   const [description, setDescription] = useState("");
   const [repositoryUrl, setRepositoryUrl] = useState("");
   const [demoUrl, setDemoUrl] = useState("");
+  const [visibility, setVisibility] = useState<ProjectVisibility>("public");
 
   const [availableSkills, setAvailableSkills] = useState<Skill[]>([]);
   const [selectedSkillIds, setSelectedSkillIds] = useState<string[]>([]);
@@ -103,7 +108,7 @@ function Projects() {
       const { data: projectRows, error: projectError } = await supabase
         .from("projects")
         .select(
-          "id, owner_id, title, description, status, repository_url, demo_url, created_at, updated_at"
+          "id, owner_id, title, description, status, visibility, repository_url, demo_url, created_at, updated_at"
         )
         .order("created_at", { ascending: false });
 
@@ -298,6 +303,7 @@ function Projects() {
           title: title.trim(),
           description: description.trim(),
           status: "idea",
+          visibility,
           repository_url: repositoryUrl.trim() || null,
           demo_url: demoUrl.trim() || null,
         })
@@ -332,6 +338,7 @@ function Projects() {
       setDescription("");
       setRepositoryUrl("");
       setDemoUrl("");
+      setVisibility("public");
       setSelectedSkillIds([]);
       setSkillSearch("");
 
@@ -398,6 +405,51 @@ function Projects() {
     );
   }
 
+  async function deleteProject(project: Project) {
+    if (!currentUserId || project.owner_id !== currentUserId || deletingProjectId) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Delete "${project.title}" permanently? This cannot be undone.`
+    );
+    if (!confirmed) return;
+
+    try {
+      setDeletingProjectId(project.id);
+      setError(null);
+
+      const { data, error: deleteError } = await supabase
+        .from("projects")
+        .delete()
+        .eq("id", project.id)
+        .eq("owner_id", currentUserId)
+        .select("id")
+        .maybeSingle();
+
+      if (deleteError) throw deleteError;
+      if (!data) {
+        throw new Error(
+          "Project was not deleted. You must be the project owner, and your database delete policy must allow this action."
+        );
+      }
+
+      setProjects((current) => current.filter((item) => item.id !== project.id));
+      setMyApplications((current) =>
+        current.filter((application) => application.project_id !== project.id)
+      );
+    } catch (err) {
+      console.error("Delete project error:", err);
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Unable to delete this project. Check your database permissions and related records."
+      );
+    } finally {
+      setDeletingProjectId(null);
+    }
+  }
+
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
@@ -414,6 +466,21 @@ function Projects() {
             Turn ideas and problems into collaborative projects with
             African developers.
           </p>
+
+          <div className="mt-5 flex flex-wrap gap-2 border-b border-slate-200">
+            <Link
+              to="/projects"
+              className="rounded-t-xl border-b-2 border-blue-700 px-4 py-3 text-sm font-semibold text-blue-700"
+            >
+              Projects
+            </Link>
+            <Link
+              to="/completed-projects"
+              className="rounded-t-xl px-4 py-3 text-sm font-semibold text-slate-500 transition hover:text-blue-700"
+            >
+              Completed Projects
+            </Link>
+          </div>
         </div>
 
         <button
@@ -519,7 +586,12 @@ function Projects() {
                     </div>
                   </div>
 
-                  <StatusBadge status={project.status} />
+                  <div className="flex flex-wrap items-center justify-end gap-2">
+                    <StatusBadge status={project.status} />
+                    <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${project.visibility === "public" ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>
+                      {project.visibility === "public" ? "Public" : "Private"}
+                    </span>
+                  </div>
                 </div>
 
                 <p className="mt-4 line-clamp-4 min-h-[6rem] text-sm leading-6 text-slate-600">
@@ -570,37 +642,36 @@ function Projects() {
                       to={`/projects/${project.id}`}
                       className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
                     >
-                      View Project
+                      {project.status === "completed"
+                        ? "View Completed Project"
+                        : project.status === "idea"
+                          ? "View Idea"
+                          : application?.status === "pending" || application?.status === "rejected"
+                            ? "View Application"
+                            : "View Project"}
                       <ArrowRight size={16} />
                     </Link>
 
-                    {!isOwner && (
-                      <Link
-                        to={`/projects/${project.id}`}
-                        className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold transition ${
-                          application?.status === "accepted"
-                            ? "bg-emerald-600 text-white hover:bg-emerald-700"
-                            : project.status === "open" && !application
-                              ? "bg-blue-700 text-white hover:bg-blue-800"
-                              : "border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100"
-                        }`}
+                    {isOwner && (
+                      <button
+                        type="button"
+                        onClick={() => void deleteProject(project)}
+                        disabled={deletingProjectId === project.id}
+                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-200 px-3 py-2.5 text-sm font-semibold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                        title="Delete project"
+                        aria-label={`Delete project ${project.title}`}
                       >
-                        {application?.status === "accepted"
-                          ? "Collaborating"
-                          : application?.status === "pending"
-                            ? "View Application"
-                            : application?.status === "rejected"
-                              ? "View Application"
-                              : project.status === "idea"
-                                ? "View Idea"
-                                : project.status === "in_progress"
-                                  ? "View Project"
-                                  : "View Completed Project"}
-                      </Link>
+                        {deletingProjectId === project.id ? (
+                          <Loader2 size={16} className="animate-spin" />
+                        ) : (
+                          <Trash2 size={16} />
+                        )}
+                        <span className="hidden sm:inline">Delete</span>
+                      </button>
                     )}
                   </div>
 
-                  {!isOwner && application && (
+                  {!isOwner && project.status !== "completed" && application && (
                     <div className="mt-3">
                       <span
                         className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${
@@ -655,8 +726,8 @@ function Projects() {
       )}
 
       {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4">
-          <div className="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/60 p-3 sm:items-center sm:p-4">
+          <div className="my-3 max-h-[94vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-4 shadow-2xl sm:my-0 sm:p-6">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-sm font-semibold text-blue-600">
@@ -759,6 +830,34 @@ function Projects() {
                     {selectedSkillIds.length} skill{selectedSkillIds.length === 1 ? "" : "s"} selected
                   </p>
                 )}
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-slate-700">
+                  Project visibility
+                </label>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <button
+                    type="button"
+                    onClick={() => setVisibility("public")}
+                    className={`rounded-xl border p-4 text-left transition ${visibility === "public" ? "border-blue-500 bg-blue-50 ring-2 ring-blue-100" : "border-slate-200 bg-white hover:border-blue-200"}`}
+                  >
+                    <p className="font-semibold text-slate-900">Public</p>
+                    <p className="mt-1 text-xs leading-5 text-slate-500">
+                      Visible to the AfriDev community and eligible for the Completed Projects showcase.
+                    </p>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setVisibility("private")}
+                    className={`rounded-xl border p-4 text-left transition ${visibility === "private" ? "border-blue-500 bg-blue-50 ring-2 ring-blue-100" : "border-slate-200 bg-white hover:border-blue-200"}`}
+                  >
+                    <p className="font-semibold text-slate-900">Private</p>
+                    <p className="mt-1 text-xs leading-5 text-slate-500">
+                      Only the owner and authorized project members can access it.
+                    </p>
+                  </button>
+                </div>
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">

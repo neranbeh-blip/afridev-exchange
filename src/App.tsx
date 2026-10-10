@@ -7,7 +7,6 @@ import Landing from "./pages/Landing";
 
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
-import AuthCallback from "./pages/auth/AuthCallback";
 
 import Dashboard from "./pages/dashboard/Dashboard";
 import Discover from "./pages/discover/Discover";
@@ -19,6 +18,7 @@ import Passport from "./pages/passport/Passport";
 import PublicPassport from "./pages/passport/PublicPassport";
 
 import Projects from "./pages/projects/Projects";
+import CompletedProjects from "./pages/projects/CompletedProjects";
 import ProjectDetails from "./pages/projects/ProjectDetails";
 import ProjectWorkspace from "./pages/projects/ProjectWorkspace";
 
@@ -43,12 +43,6 @@ function App() {
       <Route path="/login" element={<Login />} />
 
       <Route path="/register" element={<Register />} />
-
-      {/* Email verification callback */}
-      <Route
-        path="/auth/callback"
-        element={<AuthCallback />}
-      />
 
       {/* Public developer passport */}
       <Route
@@ -80,6 +74,11 @@ function App() {
         <Route
           path="/projects"
           element={<Projects />}
+        />
+
+        <Route
+          path="/completed-projects"
+          element={<CompletedProjects />}
         />
 
         <Route

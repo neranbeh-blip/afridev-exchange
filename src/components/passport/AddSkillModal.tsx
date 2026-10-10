@@ -1,4 +1,4 @@
-import { Plus, Search, X } from "lucide-react";
+import { Check, Plus, Search, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
 
@@ -101,6 +101,8 @@ function AddSkillModal({
 
       if (existingSkill) {
         setSelectedSkillId(existingSkill.id);
+        setSearch("");
+        setError("");
         setShowCreateSkill(false);
         setNewSkillName("");
         setNewSkillCategory("");
@@ -130,6 +132,7 @@ function AddSkillModal({
         );
 
         setSelectedSkillId(createdSkill.id);
+        setSearch("");
       }
 
       setShowCreateSkill(false);
@@ -275,9 +278,13 @@ function AddSkillModal({
                         <button
                           key={skill.id}
                           type="button"
-                          onClick={() =>
-                            setSelectedSkillId(skill.id)
-                          }
+                          onClick={() => {
+                            setSelectedSkillId((current) =>
+                              current === skill.id ? "" : skill.id
+                            );
+                            setSearch("");
+                            setError("");
+                          }}
                           className={`w-full rounded-xl border p-3 text-left transition ${
                             selected
                               ? "border-blue-500 bg-blue-50"
@@ -298,12 +305,15 @@ function AddSkillModal({
                             </div>
 
                             <div
-                              className={`h-4 w-4 rounded-full border-2 ${
+                              className={`flex h-6 w-6 items-center justify-center rounded-full border-2 transition ${
                                 selected
-                                  ? "border-blue-600 bg-blue-600"
-                                  : "border-slate-300"
+                                  ? "border-blue-600 bg-blue-600 text-white"
+                                  : "border-slate-300 bg-white"
                               }`}
-                            />
+                              aria-hidden="true"
+                            >
+                              {selected && <Check size={14} strokeWidth={3} />}
+                            </div>
                           </div>
                         </button>
                       );
@@ -317,6 +327,32 @@ function AddSkillModal({
                   </div>
                 )}
               </div>
+
+              {selectedSkillId && (
+                <div className="mt-4 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">
+                        Selected skill
+                      </p>
+                      <p className="mt-1 truncate text-sm font-bold text-blue-950">
+                        {skills.find((skill) => skill.id === selectedSkillId)?.name}
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedSkillId("");
+                        setError("");
+                      }}
+                      className="shrink-0 rounded-lg px-2 py-1 text-xs font-semibold text-blue-700 transition hover:bg-blue-100"
+                    >
+                      Change
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {/* Create skill */}
               <button

@@ -1,19 +1,19 @@
 import {
-  Activity,
   ArrowRight,
-  CheckCircle2,
-  Clock3,
+  ArrowRightLeft,
+  Bell,
   FolderKanban,
-  Handshake,
-  Layers3,
+  Lightbulb,
+  MapPin,
   Plus,
+  Search,
   Sparkles,
-  Target,
   Users,
   Zap,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import heroImage from "../../assets/hero.png";
 import { supabase } from "../../lib/supabase";
 
 type Profile = {
@@ -25,64 +25,68 @@ type Profile = {
   avatar_url: string | null;
 };
 
-type Match = {
+type DashboardStats = {
+  matches: number;
+  exchanges: number;
+  projects: number;
+  followers: number;
+};
+
+type DashboardNotification = {
+  id: string;
+  title: string;
+  message: string;
+  link: string | null;
+  read: boolean;
+  created_at: string;
+  type: string;
+};
+
+type MatchRecord = {
   id: string;
   compatibility_score: number;
   explanation: string | null;
-  status: string;
-  otherDeveloperId: string;
-  otherDeveloperName: string;
-  otherDeveloperUsername: string | null;
-  otherDeveloperAvatar: string | null;
-  offerTitle: string;
-  needTitle: string;
+  offer_developer_id: string;
+  need_developer_id: string;
 };
 
-type Exchange = {
-  id: string;
-  title: string;
-  status: string;
-  updated_at: string;
+type SuggestedDeveloper = Profile & {
+  skills: string[];
 };
 
-type Project = {
-  id: string;
-  title: string;
-  description: string | null;
-  status: string;
-  updated_at: string;
-};
+function timeAgo(value: string) {
+  const seconds = Math.max(
+    0,
+    Math.floor((Date.now() - new Date(value).getTime()) / 1000)
+  );
 
-type ActivityItem = {
-  id: string;
-  title: string;
-  description: string;
-  date: string;
-  type: "exchange" | "project" | "contribution";
-};
+  if (seconds < 60) return "just now";
 
-type DashboardStats = {
-  activeOffers: number;
-  activeNeeds: number;
-  suggestedMatches: number;
-  activeExchanges: number;
-  projects: number;
-  completedProjects: number;
-  completedExchanges: number;
-  verifiedContributions: number;
-  verifiedEvidence: number;
-};
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
 
-function formatDate(value: string) {
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days}d ago`;
+
   return new Date(value).toLocaleDateString(undefined, {
     day: "numeric",
     month: "short",
-    year: "numeric",
   });
 }
 
-function statusLabel(status: string) {
-  return status.replaceAll("_", " ");
+function initials(name: string | null | undefined) {
+  return (
+    name
+      ?.split(" ")
+      .filter(Boolean)
+      .map((part) => part[0])
+      .join("")
+      .slice(0, 2)
+      .toUpperCase() || "AD"
+  );
 }
 
 function Dashboard() {
@@ -90,21 +94,27 @@ function Dashboard() {
 
   const [profile, setProfile] = useState<Profile | null>(null);
   const [stats, setStats] = useState<DashboardStats>({
-    activeOffers: 0,
-    activeNeeds: 0,
-    suggestedMatches: 0,
-    activeExchanges: 0,
+    matches: 0,
+    exchanges: 0,
     projects: 0,
-    completedProjects: 0,
-    completedExchanges: 0,
-    verifiedContributions: 0,
-    verifiedEvidence: 0,
+    followers: 0,
   });
+  const [notifications, setNotifications] = useState<
+    DashboardNotification[]
+  >([]);
+  const [match, setMatch] = useState<{
+    record: MatchRecord;
+    developer: Profile;
+  } | null>(null);
+  const [suggestedDevelopers, setSuggestedDevelopers] = useState<
+    SuggestedDeveloper[]
+  >([]);
 
-  const [matches, setMatches] = useState<Match[]>([]);
-  const [activeExchanges, setActiveExchanges] = useState<Exchange[]>([]);
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [activity, setActivity] = useState<ActivityItem[]>([]);
+  const [search, setSearch] = useState("");
+  const [searchResults, setSearchResults] = useState<Profile[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -122,39 +132,30 @@ function Dashboard() {
         } = await supabase.auth.getUser();
 
         if (userError) throw userError;
-        if (!user) {
-          if (mounted) setError("You are not authenticated.");
-          return;
-        }
+        if (!user) throw new Error("You are not authenticated.");
 
         const [
           profileResult,
-          offersResult,
-          needsResult,
+          projectResult,
           participantResult,
-          ownedProjectsResult,
-          memberProjectsResult,
-          contributionsResult,
-          evidenceResult,
-          matchesResult,
+          contributionResult,
+          followerResult,
+          matchResult,
+          notificationResult,
+          suggestedResult,
         ] = await Promise.all([
           supabase
             .from("profiles")
-            .select("id, full_name, username, country, city, avatar_url")
+            .select(
+              "id, full_name, username, country, city, avatar_url"
+            )
             .eq("id", user.id)
             .single(),
 
           supabase
-            .from("offers")
+            .from("projects")
             .select("id", { count: "exact", head: true })
-            .eq("developer_id", user.id)
-            .eq("status", "active"),
-
-          supabase
-            .from("needs")
-            .select("id", { count: "exact", head: true })
-            .eq("developer_id", user.id)
-            .eq("status", "active"),
+            .eq("owner_id", user.id),
 
           supabase
             .from("exchange_participants")
@@ -162,257 +163,168 @@ function Dashboard() {
             .eq("developer_id", user.id),
 
           supabase
-            .from("projects")
-            .select("id, title, description, status, updated_at")
-            .eq("owner_id", user.id)
-            .order("updated_at", { ascending: false }),
-
-          supabase
-            .from("project_members")
-            .select("project_id")
-            .eq("developer_id", user.id),
-
-          supabase
             .from("contributions")
-            .select("id, title, status, created_at")
+            .select("id", { count: "exact", head: true })
             .eq("contributor_id", user.id)
-            .order("created_at", { ascending: false })
-            .limit(5),
+            .eq("status", "verified"),
 
           supabase
-            .from("skill_evidence")
-            .select("id", { count: "exact", head: true })
-            .eq("developer_id", user.id)
-            .eq("verification_status", "verified"),
+            .from("developer_follows")
+            .select("follower_id", { count: "exact", head: true })
+            .eq("following_id", user.id),
 
           supabase
             .from("matches")
             .select(
-              "id, compatibility_score, explanation, status, offer_developer_id, need_developer_id, offer_id, need_id"
+              "id, compatibility_score, explanation, offer_developer_id, need_developer_id"
             )
             .or(
               `offer_developer_id.eq.${user.id},need_developer_id.eq.${user.id}`
             )
+            .neq("status", "rejected")
             .order("compatibility_score", { ascending: false })
             .limit(6),
+
+          supabase
+            .from("notifications")
+            .select(
+              "id, title, message, link, read, created_at, type"
+            )
+            .eq("user_id", user.id)
+            .order("created_at", { ascending: false })
+            .limit(5),
+
+          supabase
+            .from("profiles")
+            .select(
+              "id, full_name, username, country, city, avatar_url"
+            )
+            .neq("id", user.id)
+            .limit(4),
         ]);
 
         if (profileResult.error) throw profileResult.error;
-        if (offersResult.error) throw offersResult.error;
-        if (needsResult.error) throw needsResult.error;
+        if (projectResult.error) throw projectResult.error;
         if (participantResult.error) throw participantResult.error;
-        if (ownedProjectsResult.error) throw ownedProjectsResult.error;
-        if (memberProjectsResult.error) throw memberProjectsResult.error;
-        if (contributionsResult.error) throw contributionsResult.error;
-        if (evidenceResult.error) throw evidenceResult.error;
-        if (matchesResult.error) throw matchesResult.error;
+        if (contributionResult.error) throw contributionResult.error;
+        if (followerResult.error) throw followerResult.error;
+        if (matchResult.error) throw matchResult.error;
+        if (notificationResult.error) throw notificationResult.error;
 
         const exchangeIds =
           participantResult.data?.map((item) => item.exchange_id) ?? [];
 
-        let exchanges: Exchange[] = [];
+        let activeExchangeCount = 0;
 
         if (exchangeIds.length > 0) {
-          const { data, error: exchangesError } = await supabase
-            .from("exchanges")
-            .select("id, title, status, updated_at")
-            .in("id", exchangeIds)
-            .order("updated_at", { ascending: false });
+          const { data: exchangeRows, error: exchangeError } =
+            await supabase
+              .from("exchanges")
+              .select("id, status")
+              .in("id", exchangeIds);
 
-          if (exchangesError) throw exchangesError;
-          exchanges = (data ?? []) as Exchange[];
+          if (exchangeError) throw exchangeError;
+
+          activeExchangeCount =
+            exchangeRows?.filter((item) =>
+              ["pending", "negotiating", "accepted", "active"].includes(
+                item.status
+              )
+            ).length ?? 0;
         }
 
-        const activeStatuses = new Set([
-          "pending",
-          "negotiating",
-          "accepted",
-          "active",
-        ]);
-
-        const activeExchangeRows = exchanges.filter((exchange) =>
-          activeStatuses.has(exchange.status)
-        );
-
-        const completedExchangeCount = exchanges.filter(
-          (exchange) => exchange.status === "completed"
-        ).length;
-
-        const ownedProjects = (ownedProjectsResult.data ?? []) as Project[];
-        const memberProjectIds =
-          memberProjectsResult.data?.map((item) => item.project_id) ?? [];
-
-        let participatedProjects: Project[] = [];
-
-        if (memberProjectIds.length > 0) {
-          const { data, error: memberProjectError } = await supabase
-            .from("projects")
-            .select("id, title, description, status, updated_at")
-            .in("id", memberProjectIds)
-            .order("updated_at", { ascending: false });
-
-          if (memberProjectError) throw memberProjectError;
-          participatedProjects = (data ?? []) as Project[];
-        }
-
-        const projectMap = new Map<string, Project>();
-
-        [...ownedProjects, ...participatedProjects].forEach((project) => {
-          projectMap.set(project.id, project);
-        });
-
-        const allProjects = Array.from(projectMap.values()).sort(
-          (a, b) =>
-            new Date(b.updated_at).getTime() -
-            new Date(a.updated_at).getTime()
-        );
-
-        const completedProjects = allProjects.filter(
-          (project) => project.status === "completed"
-        ).length;
-
-        const contributionRows = contributionsResult.data ?? [];
-
-        const activityItems: ActivityItem[] = [
-          ...exchanges.slice(0, 4).map((exchange) => ({
-            id: `exchange-${exchange.id}`,
-            title: exchange.title,
-            description: `Exchange ${statusLabel(exchange.status)}`,
-            date: exchange.updated_at,
-            type: "exchange" as const,
-          })),
-          ...allProjects.slice(0, 4).map((project) => ({
-            id: `project-${project.id}`,
-            title: project.title,
-            description: `Project ${statusLabel(project.status)}`,
-            date: project.updated_at,
-            type: "project" as const,
-          })),
-          ...contributionRows.slice(0, 4).map((contribution) => ({
-            id: `contribution-${contribution.id}`,
-            title: contribution.title ?? "Contribution",
-            description: `Contribution ${statusLabel(contribution.status)}`,
-            date: contribution.created_at,
-            type: "contribution" as const,
-          })),
-        ]
-          .sort(
-            (a, b) =>
-              new Date(b.date).getTime() - new Date(a.date).getTime()
-          )
-          .slice(0, 6);
-
-        // Resolve the developers and offer/need titles represented by matches.
-        const rawMatches = matchesResult.data ?? [];
-        const developerIds = Array.from(
+        const matchRows = (matchResult.data ?? []) as MatchRecord[];
+        const otherDeveloperIds = Array.from(
           new Set(
-            rawMatches
-              .flatMap((match) => [
-                match.offer_developer_id,
-                match.need_developer_id,
-              ])
-              .filter((id) => id !== user.id)
+            matchRows
+              .map((item) =>
+                item.offer_developer_id === user.id
+                  ? item.need_developer_id
+                  : item.offer_developer_id
+              )
+              .filter(Boolean)
           )
         );
 
-        const offerIds = Array.from(
-          new Set(rawMatches.map((match) => match.offer_id))
-        );
-        const needIds = Array.from(
-          new Set(rawMatches.map((match) => match.need_id))
-        );
+        let matchDeveloper: Profile | null = null;
 
-        const [developerResult, offerResult, needResult] = await Promise.all([
-          developerIds.length > 0
-            ? supabase
-                .from("profiles")
-                .select("id, full_name, username, avatar_url")
-                .in("id", developerIds)
-            : Promise.resolve({ data: [], error: null }),
+        if (otherDeveloperIds.length > 0) {
+          const { data: matchProfiles, error: matchProfilesError } =
+            await supabase
+              .from("profiles")
+              .select(
+                "id, full_name, username, country, city, avatar_url"
+              )
+              .in("id", otherDeveloperIds);
 
-          offerIds.length > 0
-            ? supabase
-                .from("offers")
-                .select("id, title")
-                .in("id", offerIds)
-            : Promise.resolve({ data: [], error: null }),
+          if (matchProfilesError) throw matchProfilesError;
 
-          needIds.length > 0
-            ? supabase
-                .from("needs")
-                .select("id, title")
-                .in("id", needIds)
-            : Promise.resolve({ data: [], error: null }),
-        ]);
+          const topMatch = matchRows[0];
+          const topDeveloperId =
+            topMatch.offer_developer_id === user.id
+              ? topMatch.need_developer_id
+              : topMatch.offer_developer_id;
 
-        if (developerResult.error) throw developerResult.error;
-        if (offerResult.error) throw offerResult.error;
-        if (needResult.error) throw needResult.error;
+          matchDeveloper =
+            matchProfiles?.find((item) => item.id === topDeveloperId) ??
+            null;
 
-        const developers = new Map(
-          (developerResult.data ?? []).map((developer) => [
-            developer.id,
-            developer,
-          ])
-        );
-        const offers = new Map(
-          (offerResult.data ?? []).map((offer) => [offer.id, offer.title])
-        );
-        const needs = new Map(
-          (needResult.data ?? []).map((need) => [need.id, need.title])
-        );
+          if (topMatch && matchDeveloper) {
+            setMatch({
+              record: topMatch,
+              developer: matchDeveloper,
+            });
+          }
+        }
 
-        const resolvedMatches: Match[] = rawMatches
-          .filter(
-            (match) =>
-              match.offer_developer_id !== user.id ||
-              match.need_developer_id !== user.id
-          )
-          .map((match) => {
-            const otherDeveloperId =
-              match.offer_developer_id === user.id
-                ? match.need_developer_id
-                : match.offer_developer_id;
+        const suggestedProfiles = (suggestedResult.data ??
+          []) as Profile[];
 
-            const developer = developers.get(otherDeveloperId);
+        const suggestedIds = suggestedProfiles.map((item) => item.id);
+        type SuggestedSkillRow = {
+          developer_id: string;
+          skill: { name: string }[] | null;
+        };
 
-            return {
-              id: match.id,
-              compatibility_score: Number(match.compatibility_score ?? 0),
-              explanation: match.explanation,
-              status: match.status,
-              otherDeveloperId,
-              otherDeveloperName:
-                developer?.full_name || "Developer",
-              otherDeveloperUsername: developer?.username ?? null,
-              otherDeveloperAvatar: developer?.avatar_url ?? null,
-              offerTitle: offers.get(match.offer_id) || "Skill offer",
-              needTitle: needs.get(match.need_id) || "Skill need",
-            };
-          });
+        let suggestedSkills: SuggestedSkillRow[] = [];
+
+        if (suggestedIds.length > 0) {
+          const { data: skillRows, error: skillError } =
+            await supabase
+              .from("developer_skills")
+              .select("developer_id, skill:skills(name)")
+              .in("developer_id", suggestedIds);
+
+          if (skillError) throw skillError;
+
+          suggestedSkills = (skillRows ?? []) as SuggestedSkillRow[];
+        }
+
+        const developersWithSkills: SuggestedDeveloper[] =
+          suggestedProfiles.map((developer) => ({
+            ...developer,
+            skills: suggestedSkills
+              .filter((row) => row.developer_id === developer.id)
+              .flatMap((row) => row.skill ?? [])
+              .map((skill) => skill.name)
+              .filter(Boolean)
+              .slice(0, 3),
+          }));
 
         if (!mounted) return;
 
         setProfile(profileResult.data as Profile);
-        setMatches(resolvedMatches);
-        setActiveExchanges(activeExchangeRows.slice(0, 4));
-        setProjects(allProjects.slice(0, 4));
-        setActivity(activityItems);
-
         setStats({
-          activeOffers: offersResult.count ?? 0,
-          activeNeeds: needsResult.count ?? 0,
-          suggestedMatches: resolvedMatches.length,
-          activeExchanges: activeExchangeRows.length,
-          projects: allProjects.length,
-          completedProjects,
-          completedExchanges: completedExchangeCount,
-          verifiedContributions:
-            contributionRows.filter(
-              (contribution) => contribution.status === "verified"
-            ).length,
-          verifiedEvidence: evidenceResult.count ?? 0,
+          matches: matchRows.length,
+          exchanges: activeExchangeCount,
+          projects: projectResult.count ?? 0,
+          followers: followerResult.count ?? 0,
         });
+        setNotifications(
+          (notificationResult.data ??
+            []) as DashboardNotification[]
+        );
+        setSuggestedDevelopers(developersWithSkills);
       } catch (err) {
         console.error("Dashboard loading error:", err);
 
@@ -420,7 +332,7 @@ function Dashboard() {
           setError(
             err instanceof Error
               ? err.message
-              : "We couldn't load your dashboard data. Please refresh the page."
+              : "We couldn't load your dashboard data."
           );
         }
       } finally {
@@ -428,554 +340,756 @@ function Dashboard() {
       }
     }
 
-    loadDashboard();
+    void loadDashboard();
 
     return () => {
       mounted = false;
     };
   }, []);
 
-  const firstName =
-    profile?.full_name?.split(" ")[0] || "Developer";
+  useEffect(() => {
+    const query = search.trim();
 
+    if (!query) {
+      setSearchResults([]);
+      setSearchOpen(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    async function searchDevelopers() {
+      setSearchLoading(true);
+      setSearchOpen(true);
+
+      try {
+        const { data, error } = await supabase
+          .from("profiles")
+          .select(
+            "id, full_name, username, country, city, avatar_url"
+          )
+          .or(
+            `full_name.ilike.%${query}%,username.ilike.%${query}%,country.ilike.%${query}%,city.ilike.%${query}%`
+          )
+          .order("full_name", { ascending: true })
+          .limit(8);
+
+        if (error) throw error;
+
+        if (!cancelled) {
+          setSearchResults((data ?? []) as Profile[]);
+        }
+      } catch (searchError) {
+        console.error("Dashboard search error:", searchError);
+
+        if (!cancelled) {
+          setSearchResults([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setSearchLoading(false);
+        }
+      }
+    }
+
+    const timer = window.setTimeout(searchDevelopers, 250);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [search]);
+
+  const firstName = profile?.full_name?.split(" ")[0] || "Developer";
   const country = profile?.country || "Cameroon";
 
-  const profileItems = [
-    Boolean(profile?.full_name),
-    Boolean(profile?.username),
-    Boolean(profile?.country),
-    Boolean(profile?.city),
-    Boolean(profile?.avatar_url),
-  ];
-
-  const profileCompletion = Math.round(
-    (profileItems.filter(Boolean).length / profileItems.length) * 100
+  const unreadNotifications = useMemo(
+    () => notifications.filter((item) => !item.read).length,
+    [notifications]
   );
 
-  const statCards = [
-    {
-      value: stats.activeOffers,
-      label: "Active offers",
-      icon: Zap,
-      action: "/exchange",
-    },
-    {
-      value: stats.activeNeeds,
-      label: "Active needs",
-      icon: Target,
-      action: "/exchange",
-    },
-    {
-      value: stats.suggestedMatches,
-      label: "Suggested matches",
-      icon: Sparkles,
-      action: "/discover",
-    },
-    {
-      value: stats.activeExchanges,
-      label: "Active exchanges",
-      icon: Handshake,
-      action: "/exchange",
-    },
-    {
-      value: stats.projects,
-      label: "Projects",
-      icon: FolderKanban,
-      action: "/projects",
-    },
-    {
-      value: stats.verifiedContributions,
-      label: "Verified contributions",
-      icon: CheckCircle2,
-      action: "/passport",
-    },
-  ];
+  const heroTitle = (
+    <>
+      Exchange skills.
+      <br />
+      Build solutions.
+      <br />
+      <span className="text-sky-400">Grow Africa.</span>
+    </>
+  );
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-      {/* HEADER */}
-      <div className="flex flex-col justify-between gap-6 md:flex-row md:items-center">
-        <div className="flex items-center gap-4">
-          {profile?.avatar_url ? (
-            <img
-              src={profile.avatar_url}
-              alt={profile.full_name}
-              className="h-16 w-16 rounded-2xl object-cover ring-4 ring-blue-50"
-            />
-          ) : (
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-100 text-xl font-bold text-blue-700">
-              {firstName.slice(0, 2).toUpperCase()}
-            </div>
-          )}
-
+    <div className="min-h-[calc(100vh-5rem)] bg-slate-50">
+      <div className="mx-auto max-w-[1600px] px-4 py-5 sm:px-6 lg:px-8">
+        {/* SEARCH / PAGE CONTEXT */}
+        <div className="mb-5 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
           <div>
-            <p className="text-sm font-medium text-blue-700">
-              Welcome back 👋
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-600">
+              Developer workspace
             </p>
-
-            <h1 className="mt-1 text-3xl font-bold tracking-tight text-slate-950">
-              {loading ? "Loading your dashboard..." : `Welcome, ${firstName}.`}
+            <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-950">
+              Welcome back, {firstName}.
             </h1>
+          </div>
 
-            <p className="mt-2 text-slate-500">
-              Turn your skills into opportunities.
-            </p>
+          <div className="relative w-full max-w-xl">
+            <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+              <Search size={20} className="shrink-0 text-slate-400" />
+              <input
+                aria-label="Search AfriDev"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                onFocus={() => {
+                  if (search.trim()) setSearchOpen(true);
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Escape") setSearchOpen(false);
+                }}
+                placeholder="Search developers, projects, skills, problems..."
+                className="min-w-0 flex-1 bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400"
+              />
+              <kbd className="hidden rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] font-semibold text-slate-500 sm:block">
+                Ctrl + K
+              </kbd>
+            </div>
 
-            {!loading && profile && (
-              <p className="mt-1 text-sm text-slate-400">
-                {profile.city ? `${profile.city}, ${country}` : country}
-              </p>
+            {searchOpen && search.trim() && (
+              <div className="absolute left-0 right-0 top-full z-50 mt-2 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
+                {searchLoading ? (
+                  <div className="px-5 py-6 text-center text-sm text-slate-500">
+                    Searching developers...
+                  </div>
+                ) : searchResults.length === 0 ? (
+                  <div className="px-5 py-6 text-center">
+                    <Users size={24} className="mx-auto text-slate-300" />
+                    <p className="mt-2 text-sm font-semibold text-slate-700">No developers found</p>
+                    <p className="mt-1 text-xs text-slate-400">Try another name or username.</p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="border-b border-slate-100 px-4 py-3">
+                      <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Developers</p>
+                    </div>
+                    <div className="divide-y divide-slate-100">
+                      {searchResults.map((developer) => (
+                        <button
+                          key={developer.id}
+                          type="button"
+                          onClick={() => {
+                            setSearchOpen(false);
+                            setSearch("");
+                            navigate(`/developer/${developer.id}`);
+                          }}
+                          className="flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-slate-50"
+                        >
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-blue-50">
+                            {developer.avatar_url ? (
+                              <img src={developer.avatar_url} alt={developer.full_name || "Developer"} className="h-full w-full object-cover" />
+                            ) : (
+                              <span className="text-sm font-black text-blue-700">{initials(developer.full_name)}</span>
+                            )}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-bold text-slate-900">{developer.full_name || "AfriDev Developer"}</p>
+                            <p className="truncate text-xs text-slate-500">{developer.username ? `@${developer.username}` : developer.city || developer.country || "African Developer"}</p>
+                          </div>
+                          <ArrowRight size={16} className="shrink-0 text-slate-300" />
+                        </button>
+                      ))}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => { setSearchOpen(false); navigate("/discover"); }}
+                      className="w-full border-t border-slate-100 px-4 py-3 text-center text-sm font-bold text-blue-600 transition hover:bg-blue-50"
+                    >
+                      View all developers
+                    </button>
+                  </>
+                )}
+              </div>
             )}
           </div>
         </div>
 
-        <div className="flex flex-col gap-3 sm:flex-row">
-          <button
-            type="button"
-            onClick={() => navigate("/exchange")}
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-          >
-            <Plus size={17} />
-            Add Need
-          </button>
-
-          <button
-            type="button"
-            onClick={() => navigate("/exchange")}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-700 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-800"
-          >
-            <Plus size={17} />
-            Add Offer
-          </button>
-        </div>
-      </div>
-
-      {error && (
-        <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
-          {error}
-        </div>
-      )}
-
-      {/* PROFILE COMPLETION */}
-      <section className="mt-8 rounded-2xl border border-blue-100 bg-gradient-to-r from-blue-50 to-white p-5">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-sm font-bold text-blue-700">
-              Developer Passport
-            </p>
-            <h2 className="mt-1 text-lg font-bold text-slate-950">
-              {profileCompletion}% profile completion
-            </h2>
-            <p className="mt-1 text-sm text-slate-500">
-              A complete profile helps other developers understand your
-              capabilities and trust your identity.
-            </p>
+        {error && (
+          <div className="mb-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {error}
           </div>
+        )}
 
-          <button
-            type="button"
-            onClick={() => navigate("/passport")}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-700 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-800"
-          >
-            Open Passport
-            <ArrowRight size={16} />
-          </button>
-        </div>
+        {/* MAIN GRID */}
+        <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+          <div className="min-w-0 space-y-5">
+            {/* HERO */}
+            <section className="relative min-h-[300px] overflow-hidden rounded-2xl bg-slate-950 shadow-sm">
+              <img
+                src={heroImage}
+                alt=""
+                className="absolute inset-0 h-full w-full object-cover opacity-70"
+              />
 
-        <div className="mt-4 h-2 overflow-hidden rounded-full bg-blue-100">
-          <div
-            className="h-full rounded-full bg-blue-700 transition-all"
-            style={{ width: `${profileCompletion}%` }}
-          />
-        </div>
-      </section>
+              <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/75 to-slate-950/10" />
+              <div className="absolute inset-x-0 bottom-0 h-5 bg-slate-950/50" />
 
-      {/* STATS */}
-      <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {statCards.map((card) => {
-          const Icon = card.icon;
+              <div className="relative flex min-h-[300px] flex-col justify-center px-7 py-8 sm:px-9">
+                <p className="mb-4 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.2em] text-sky-300">
+                  <Sparkles size={15} />
+                  Africa's developer exchange
+                </p>
 
-          return (
-            <button
-              key={card.label}
-              type="button"
-              onClick={() => navigate(card.action)}
-              className="group rounded-2xl border border-slate-200 bg-white p-5 text-left transition hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-sm"
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-700">
-                  <Icon size={19} />
+                <h2 className="afridev-display max-w-xl text-4xl font-extrabold leading-[0.98] tracking-[-0.035em] text-white sm:text-5xl">
+                  {heroTitle}
+                </h2>
+
+                <p className="mt-5 max-w-lg text-sm leading-6 text-slate-200 sm:text-base">
+                  A community of African developers connecting,
+                  collaborating and building a greater tomorrow.
+                </p>
+
+                <div className="mt-6 flex flex-wrap gap-3">
+                  <button
+                    type="button"
+                    onClick={() => navigate("/discover")}
+                    className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-blue-950/30 transition hover:bg-blue-500"
+                  >
+                    Find developers
+                    <ArrowRight size={16} />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => navigate("/exchange")}
+                    className="inline-flex items-center gap-2 rounded-xl border border-white/25 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white backdrop-blur transition hover:bg-white/15"
+                  >
+                    Exchange skills
+                  </button>
+                </div>
+              </div>
+            </section>
+
+            {/* KPI CARDS */}
+            <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              {[
+                {
+                  label: "Skill Matches",
+                  value: stats.matches,
+                  caption: "Compatible opportunities",
+                  icon: Zap,
+                  iconClass: "bg-blue-50 text-blue-600",
+                },
+                {
+                  label: "Active Exchanges",
+                  value: stats.exchanges,
+                  caption: "Currently in progress",
+                  icon: ArrowRightLeft,
+                  iconClass: "bg-emerald-50 text-emerald-600",
+                },
+                {
+                  label: "Projects",
+                  value: stats.projects,
+                  caption: "Projects you own",
+                  icon: FolderKanban,
+                  iconClass: "bg-orange-50 text-orange-600",
+                },
+                {
+                  label: "My Network",
+                  value: stats.followers,
+                  caption: "Followers",
+                  icon: Users,
+                  iconClass: "bg-violet-50 text-violet-600",
+                },
+              ].map((item) => {
+                const Icon = item.icon;
+
+                return (
+                  <button
+                    key={item.label}
+                    type="button"
+                    onClick={() => {
+                      if (item.label === "Skill Matches") navigate("/discover");
+                      if (item.label === "Active Exchanges") navigate("/exchange");
+                      if (item.label === "Projects") navigate("/projects");
+                      if (item.label === "My Network") navigate("/passport");
+                    }}
+                    className="group rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md"
+                  >
+                    <div className="flex items-start justify-between">
+                      <span
+                        className={`flex h-11 w-11 items-center justify-center rounded-full ${item.iconClass}`}
+                      >
+                        <Icon size={21} />
+                      </span>
+
+                      <ArrowRight
+                        size={16}
+                        className="text-slate-300 transition group-hover:text-blue-500"
+                      />
+                    </div>
+
+                    <div className="mt-4 flex items-end gap-2">
+                      <span className="afridev-display text-3xl font-extrabold tracking-[-0.025em] text-slate-950">
+                        {loading ? "—" : item.value}
+                      </span>
+                    </div>
+
+                    <p className="mt-1 text-sm font-semibold text-slate-700">
+                      {item.label}
+                    </p>
+                    <p className="mt-0.5 text-xs text-slate-400">
+                      {item.caption}
+                    </p>
+                  </button>
+                );
+              })}
+            </section>
+
+            {/* LOWER GRID */}
+            <div className="grid gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
+              {/* RECENT ACTIVITY */}
+              <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+                  <div>
+                    <h2 className="font-extrabold tracking-[-0.015em] text-slate-950">
+                      Recent Activity
+                    </h2>
+                    <p className="mt-0.5 text-xs text-slate-400">
+                      Latest activity around your account
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => navigate("/notifications")}
+                    className="text-sm font-bold text-blue-600 hover:text-blue-700"
+                  >
+                    View all
+                  </button>
                 </div>
 
-                <ArrowRight
-                  size={17}
-                  className="text-slate-300 transition group-hover:text-blue-700"
-                />
-              </div>
+                <div className="divide-y divide-slate-100">
+                  {notifications.length === 0 ? (
+                    <div className="px-5 py-10 text-center">
+                      <Bell className="mx-auto text-slate-300" size={28} />
+                      <p className="mt-3 text-sm font-semibold text-slate-700">
+                        No recent activity yet
+                      </p>
+                      <p className="mt-1 text-xs text-slate-400">
+                        Matches, follows, messages and project updates will appear here.
+                      </p>
+                    </div>
+                  ) : (
+                    notifications.map((notification) => (
+                      <button
+                        key={notification.id}
+                        type="button"
+                        onClick={() => {
+                          if (notification.link) navigate(notification.link);
+                          else navigate("/notifications");
+                        }}
+                        className="flex w-full items-start gap-3 px-5 py-4 text-left transition hover:bg-slate-50"
+                      >
+                        <span
+                          className={`mt-2 h-2.5 w-2.5 shrink-0 rounded-full ${
+                            notification.read
+                              ? "bg-slate-200"
+                              : "bg-blue-600"
+                          }`}
+                        />
 
-              <p className="mt-5 text-2xl font-bold text-slate-950">
-                {loading ? "—" : card.value}
-              </p>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-start justify-between gap-3">
+                            <p className="truncate text-sm font-bold text-slate-900">
+                              {notification.title}
+                            </p>
+                            <span className="shrink-0 text-[11px] text-slate-400">
+                              {timeAgo(notification.created_at)}
+                            </span>
+                          </div>
 
-              <p className="mt-1 text-sm text-slate-500">{card.label}</p>
-            </button>
-          );
-        })}
-      </div>
+                          <p className="mt-1 line-clamp-2 text-sm leading-5 text-slate-500">
+                            {notification.message}
+                          </p>
+                        </div>
+                      </button>
+                    ))
+                  )}
+                </div>
+              </section>
 
-      {/* MATCHES */}
-      <section className="mt-8">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <p className="flex items-center gap-2 text-sm font-bold text-blue-700">
-              <Sparkles size={16} />
-              Skill matching
-            </p>
+              {/* QUICK ACTIONS */}
+              <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="mb-4">
+                  <h2 className="font-extrabold tracking-[-0.015em] text-slate-950">
+                    Quick Actions
+                  </h2>
+                  <p className="mt-0.5 text-xs text-slate-400">
+                    Move your work forward
+                  </p>
+                </div>
 
-            <h2 className="mt-1 text-xl font-bold text-slate-950">
-              Developers who complement your skills
-            </h2>
+                <div className="space-y-3">
+                  {[
+                    {
+                      label: "Find Developers",
+                      text: "Discover and connect with African talent",
+                      icon: Search,
+                      className: "bg-blue-600",
+                      path: "/discover",
+                    },
+                    {
+                      label: "Create a Project",
+                      text: "Turn ideas into reality together",
+                      icon: Plus,
+                      className: "bg-emerald-600",
+                      path: "/projects",
+                    },
+                    {
+                      label: "Post a Problem",
+                      text: "Get help from the community",
+                      icon: Lightbulb,
+                      className: "bg-orange-500",
+                      path: "/problems",
+                    },
+                    {
+                      label: "Exchange Skills",
+                      text: "Teach, learn and grow",
+                      icon: ArrowRightLeft,
+                      className: "bg-violet-600",
+                      path: "/exchange",
+                    },
+                  ].map((action) => {
+                    const Icon = action.icon;
+
+                    return (
+                      <button
+                        key={action.label}
+                        type="button"
+                        onClick={() => navigate(action.path)}
+                        className="flex w-full items-center gap-4 rounded-2xl border border-slate-100 p-3 text-left transition hover:border-blue-100 hover:bg-slate-50"
+                      >
+                        <span
+                          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-white ${action.className}`}
+                        >
+                          <Icon size={20} />
+                        </span>
+
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-sm font-bold text-slate-900">
+                            {action.label}
+                          </span>
+                          <span className="mt-0.5 block text-xs leading-5 text-slate-500">
+                            {action.text}
+                          </span>
+                        </span>
+
+                        <ArrowRight size={17} className="text-slate-300" />
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
+            </div>
           </div>
 
-          <button
-            type="button"
-            onClick={() => navigate("/discover")}
-            className="hidden items-center gap-2 text-sm font-semibold text-blue-700 sm:flex"
-          >
-            View all
-            <ArrowRight size={16} />
-          </button>
-        </div>
+          {/* RIGHT COLUMN */}
+          <aside className="space-y-5">
+            {/* PROFILE SNAPSHOT */}
+            <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+              <div className="h-20 bg-gradient-to-r from-blue-700 via-blue-600 to-sky-400" />
 
-        {matches.length === 0 ? (
-          <div className="mt-5 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
-            <Sparkles className="mx-auto text-blue-700" size={24} />
-            <h3 className="mt-4 font-bold text-slate-900">
-              No suggested matches yet
-            </h3>
-            <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">
-              Add active offers and needs to let AfriDev Exchange find
-              complementary developers for you.
-            </p>
-            <button
-              type="button"
-              onClick={() => navigate("/exchange")}
-              className="mt-5 rounded-xl bg-blue-700 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-800"
-            >
-              Manage offers & needs
-            </button>
-          </div>
-        ) : (
-          <div className="mt-5 grid gap-5 lg:grid-cols-2">
-            {matches.slice(0, 4).map((match) => (
-              <div
-                key={match.id}
-                className="rounded-2xl border border-slate-200 bg-white p-6"
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex items-center gap-3">
-                    {match.otherDeveloperAvatar ? (
+              <div className="px-5 pb-5">
+                <div className="-mt-9 flex items-end justify-between">
+                  <button
+                    type="button"
+                    onClick={() => navigate("/passport")}
+                    className="flex h-18 w-18 items-center justify-center overflow-hidden rounded-2xl border-4 border-white bg-slate-100 shadow-md"
+                  >
+                    {profile?.avatar_url ? (
                       <img
-                        src={match.otherDeveloperAvatar}
-                        alt={match.otherDeveloperName}
-                        className="h-11 w-11 rounded-full object-cover"
+                        src={profile.avatar_url}
+                        alt={profile.full_name || "Developer"}
+                        className="h-full w-full object-cover"
                       />
                     ) : (
-                      <div className="flex h-11 w-11 items-center justify-center rounded-full bg-blue-100 font-bold text-blue-700">
-                        {match.otherDeveloperName
-                          .slice(0, 2)
-                          .toUpperCase()}
-                      </div>
+                      <span className="text-lg font-black text-blue-700">
+                        {initials(profile?.full_name)}
+                      </span>
                     )}
+                  </button>
 
-                    <div>
-                      <p className="font-bold text-slate-950">
-                        {match.otherDeveloperName}
-                      </p>
-                      {match.otherDeveloperUsername && (
-                        <p className="text-sm text-slate-500">
-                          @{match.otherDeveloperUsername}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  <span className="rounded-full bg-green-100 px-3 py-1 text-sm font-bold text-green-700">
-                    {Math.round(match.compatibility_score)}% match
-                  </span>
+                  <button
+                    type="button"
+                    onClick={() => navigate("/passport")}
+                    className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:border-blue-200 hover:text-blue-600"
+                  >
+                    View Passport
+                  </button>
                 </div>
 
-                <div className="mt-5 grid grid-cols-2 gap-3">
-                  <div className="rounded-xl bg-blue-50 p-4">
-                    <p className="text-xs font-semibold text-blue-600">
-                      OFFER
-                    </p>
-                    <p className="mt-2 font-bold text-slate-900">
-                      {match.offerTitle}
-                    </p>
-                  </div>
+                <h2 className="mt-3 text-lg font-bold text-slate-950">
+                  {profile?.full_name || "AfriDev Developer"}
+                </h2>
 
-                  <div className="rounded-xl bg-slate-50 p-4">
-                    <p className="text-xs font-semibold text-slate-500">
-                      NEED
-                    </p>
-                    <p className="mt-2 font-bold text-slate-900">
-                      {match.needTitle}
-                    </p>
-                  </div>
+                <p className="text-sm text-slate-500">
+                  {profile?.username
+                    ? `@${profile.username}`
+                    : "Developer"}
+                </p>
+
+                <div className="mt-3 flex items-center gap-2 text-xs text-slate-500">
+                  <MapPin size={14} className="text-blue-500" />
+                  {profile?.city
+                    ? `${profile.city}, ${country}`
+                    : country}
                 </div>
+              </div>
+            </section>
 
-                {match.explanation && (
-                  <p className="mt-4 text-sm leading-6 text-slate-600">
-                    {match.explanation}
+            {/* NOTIFICATIONS */}
+            <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+              <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+                <div>
+                  <h2 className="font-extrabold tracking-[-0.015em] text-slate-950">
+                    Notifications
+                  </h2>
+                  <p className="mt-0.5 text-xs text-slate-400">
+                    {unreadNotifications} unread
                   </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => navigate("/notifications")}
+                  className="text-sm font-bold text-blue-600"
+                >
+                  View all
+                </button>
+              </div>
+
+              <div className="divide-y divide-slate-100">
+                {notifications.length === 0 ? (
+                  <div className="px-5 py-8 text-center">
+                    <Bell className="mx-auto text-slate-300" size={26} />
+                    <p className="mt-2 text-sm font-semibold text-slate-600">
+                      No notifications
+                    </p>
+                  </div>
+                ) : (
+                  notifications.slice(0, 5).map((notification) => (
+                    <button
+                      key={notification.id}
+                      type="button"
+                      onClick={() =>
+                        navigate(
+                          notification.link || "/notifications"
+                        )
+                      }
+                      className="flex w-full gap-3 px-5 py-4 text-left transition hover:bg-slate-50"
+                    >
+                      <span
+                        className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${
+                          notification.read
+                            ? "bg-slate-200"
+                            : "bg-blue-600"
+                        }`}
+                      />
+
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="text-sm font-bold text-slate-900">
+                            {notification.title}
+                          </p>
+                          <span className="shrink-0 text-[10px] text-slate-400">
+                            {timeAgo(notification.created_at)}
+                          </span>
+                        </div>
+
+                        <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">
+                          {notification.message}
+                        </p>
+                      </div>
+                    </button>
+                  ))
                 )}
+              </div>
+            </section>
+
+            {/* SUGGESTED DEVELOPERS */}
+            <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+              <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+                <div>
+                  <h2 className="font-extrabold tracking-[-0.015em] text-slate-950">
+                    Suggested Developers
+                  </h2>
+                  <p className="mt-0.5 text-xs text-slate-400">
+                    People you may want to collaborate with
+                  </p>
+                </div>
 
                 <button
                   type="button"
                   onClick={() => navigate("/discover")}
-                  className="mt-5 w-full rounded-xl bg-blue-700 py-3 text-sm font-semibold text-white hover:bg-blue-800"
+                  className="text-sm font-bold text-blue-600"
                 >
-                  View match
+                  View all
                 </button>
               </div>
-            ))}
-          </div>
-        )}
-      </section>
 
-      {/* EXCHANGES + PROJECTS */}
-      <section className="mt-8 grid gap-6 lg:grid-cols-2">
-        <div className="rounded-2xl border border-slate-200 bg-white p-6">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-sm font-bold text-blue-700">Collaboration</p>
-              <h2 className="mt-1 text-lg font-bold">Active exchanges</h2>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => navigate("/exchange")}
-              className="text-sm font-semibold text-blue-700 hover:text-blue-800"
-            >
-              Open Exchange
-            </button>
-          </div>
-
-          {activeExchanges.length === 0 ? (
-            <div className="mt-5 rounded-xl border border-dashed border-slate-200 p-5 text-center">
-              <Handshake className="mx-auto text-slate-400" size={22} />
-              <p className="mt-3 text-sm font-medium text-slate-700">
-                No active exchanges yet.
-              </p>
-              <p className="mt-1 text-sm text-slate-500">
-                Your active skill exchanges will appear here.
-              </p>
-            </div>
-          ) : (
-            <div className="mt-5 space-y-3">
-              {activeExchanges.map((exchange) => (
-                <button
-                  key={exchange.id}
-                  type="button"
-                  onClick={() =>
-                    navigate(`/exchange/${exchange.id}`)
-                  }
-                  className="flex w-full items-center justify-between gap-4 rounded-xl border border-slate-100 p-4 text-left hover:border-blue-100 hover:bg-blue-50/40"
-                >
-                  <div className="min-w-0">
-                    <p className="truncate font-semibold text-slate-900">
-                      {exchange.title}
-                    </p>
-                    <p className="mt-1 text-xs capitalize text-slate-500">
-                      {statusLabel(exchange.status)} ·{" "}
-                      {formatDate(exchange.updated_at)}
+              <div className="divide-y divide-slate-100">
+                {suggestedDevelopers.length === 0 ? (
+                  <div className="px-5 py-8 text-center">
+                    <Users className="mx-auto text-slate-300" size={26} />
+                    <p className="mt-2 text-sm font-semibold text-slate-600">
+                      More developers will appear here
                     </p>
                   </div>
+                ) : (
+                  suggestedDevelopers.map((developer) => (
+                    <div
+                      key={developer.id}
+                      className="flex items-center gap-3 px-5 py-4"
+                    >
+                      <button
+                        type="button"
+                        onClick={() =>
+                          navigate(`/developer/${developer.id}`)
+                        }
+                        className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-slate-100"
+                      >
+                        {developer.avatar_url ? (
+                          <img
+                            src={developer.avatar_url}
+                            alt={developer.full_name}
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <span className="text-sm font-bold text-blue-700">
+                            {initials(developer.full_name)}
+                          </span>
+                        )}
+                      </button>
 
-                  <ArrowRight
-                    size={17}
-                    className="shrink-0 text-slate-400"
-                  />
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+                      <div className="min-w-0 flex-1">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            navigate(`/developer/${developer.id}`)
+                          }
+                          className="block max-w-full truncate text-left text-sm font-bold text-slate-900 hover:text-blue-600"
+                        >
+                          {developer.full_name || "Developer"}
+                        </button>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-6">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-sm font-bold text-blue-700">Build together</p>
-              <h2 className="mt-1 text-lg font-bold">My projects</h2>
-            </div>
+                        <p className="truncate text-xs text-slate-500">
+                          {developer.city
+                            ? `${developer.city}, ${
+                                developer.country || ""
+                              }`
+                            : developer.country || "African Developer"}
+                        </p>
 
-            <button
-              type="button"
-              onClick={() => navigate("/projects")}
-              className="text-sm font-semibold text-blue-700 hover:text-blue-800"
-            >
-              View Projects
-            </button>
-          </div>
+                        <div className="mt-1.5 flex flex-wrap gap-1">
+                          {(developer.skills.length
+                            ? developer.skills
+                            : ["Developer"]
+                          ).map((skill) => (
+                            <span
+                              key={skill}
+                              className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-600"
+                            >
+                              {skill}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
 
-          {projects.length === 0 ? (
-            <div className="mt-5 rounded-xl border border-dashed border-slate-200 p-5 text-center">
-              <FolderKanban className="mx-auto text-slate-400" size={22} />
-              <p className="mt-3 text-sm font-medium text-slate-700">
-                No projects yet.
-              </p>
-              <p className="mt-1 text-sm text-slate-500">
-                Start a project and invite developers to build together.
-              </p>
-            </div>
-          ) : (
-            <div className="mt-5 space-y-3">
-              {projects.map((project) => (
-                <button
-                  key={project.id}
-                  type="button"
-                  onClick={() => navigate(`/projects/${project.id}`)}
-                  className="flex w-full items-center justify-between gap-4 rounded-xl border border-slate-100 p-4 text-left hover:border-blue-100 hover:bg-blue-50/40"
-                >
-                  <div className="min-w-0">
-                    <p className="truncate font-semibold text-slate-900">
-                      {project.title}
-                    </p>
-                    <p className="mt-1 text-xs capitalize text-slate-500">
-                      {statusLabel(project.status)} ·{" "}
-                      {formatDate(project.updated_at)}
-                    </p>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          navigate(`/developer/${developer.id}`)
+                        }
+                        className="hidden rounded-xl border border-blue-200 px-3 py-2 text-xs font-bold text-blue-600 hover:bg-blue-50 sm:block"
+                      >
+                        View
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </section>
+
+            {/* MATCH CARD */}
+            <section className="rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50 via-white to-sky-50 p-5 shadow-sm">
+              <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-blue-600">
+                <Sparkles size={14} />
+                Best skill match
+              </div>
+
+              {match ? (
+                <>
+                  <div className="mt-4 flex items-center gap-3">
+                    <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-full bg-white shadow-sm">
+                      {match.developer.avatar_url ? (
+                        <img
+                          src={match.developer.avatar_url}
+                          alt={match.developer.full_name}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <span className="font-bold text-blue-700">
+                          {initials(match.developer.full_name)}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-bold text-slate-950">
+                        {match.developer.full_name}
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        {match.developer.country || "Africa"}
+                      </p>
+                    </div>
+
+                    <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-black text-emerald-700">
+                      {Math.round(match.record.compatibility_score)}%
+                    </span>
                   </div>
 
-                  <ArrowRight
-                    size={17}
-                    className="shrink-0 text-slate-400"
-                  />
-                </button>
-              ))}
-            </div>
-          )}
+                  <p className="mt-4 text-sm leading-6 text-slate-600">
+                    {match.record.explanation ||
+                      "Your capabilities complement this developer's needs."}
+                  </p>
+
+                  <button
+                    type="button"
+                    onClick={() => navigate("/discover")}
+                    className="mt-4 w-full rounded-xl bg-blue-600 py-2.5 text-sm font-bold text-white hover:bg-blue-700"
+                  >
+                    Explore match
+                  </button>
+                </>
+              ) : (
+                <>
+                  <p className="mt-3 text-sm leading-6 text-slate-600">
+                    Add more skills, offers and needs to unlock
+                    complementary developer matches.
+                  </p>
+
+                  <button
+                    type="button"
+                    onClick={() => navigate("/passport")}
+                    className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-blue-600"
+                  >
+                    Complete your Passport
+                    <ArrowRight size={15} />
+                  </button>
+                </>
+              )}
+            </section>
+          </aside>
         </div>
-      </section>
-
-      {/* TRUST + ACTIVITY */}
-      <section className="mt-8 grid gap-6 lg:grid-cols-5">
-        <div className="lg:col-span-2 rounded-2xl border border-slate-200 bg-white p-6">
-          <div className="flex items-center gap-2">
-            <Layers3 size={19} className="text-blue-700" />
-            <h2 className="text-lg font-bold">AfriDev Trust & Experience</h2>
-          </div>
-
-          <p className="mt-2 text-sm leading-6 text-slate-500">
-            Your activity on AfriDev Exchange is tracked separately from your
-            technical capability.
-          </p>
-
-          <div className="mt-5 grid grid-cols-2 gap-3">
-            <div className="rounded-xl bg-slate-50 p-4">
-              <p className="text-2xl font-bold">{stats.completedExchanges}</p>
-              <p className="mt-1 text-xs text-slate-500">
-                Completed exchanges
-              </p>
-            </div>
-
-            <div className="rounded-xl bg-slate-50 p-4">
-              <p className="text-2xl font-bold">{stats.completedProjects}</p>
-              <p className="mt-1 text-xs text-slate-500">
-                Completed projects
-              </p>
-            </div>
-
-            <div className="rounded-xl bg-slate-50 p-4">
-              <p className="text-2xl font-bold">
-                {stats.verifiedContributions}
-              </p>
-              <p className="mt-1 text-xs text-slate-500">
-                Verified contributions
-              </p>
-            </div>
-
-            <div className="rounded-xl bg-slate-50 p-4">
-              <p className="text-2xl font-bold">{stats.verifiedEvidence}</p>
-              <p className="mt-1 text-xs text-slate-500">
-                Verified evidence
-              </p>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => navigate("/passport")}
-            className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-blue-700"
-          >
-            View full Passport
-            <ArrowRight size={16} />
-          </button>
-        </div>
-
-        <div className="lg:col-span-3 rounded-2xl border border-slate-200 bg-white p-6">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="flex items-center gap-2 text-sm font-bold text-blue-700">
-                <Activity size={16} />
-                Activity
-              </p>
-              <h2 className="mt-1 text-lg font-bold">Recent activity</h2>
-            </div>
-          </div>
-
-          {activity.length === 0 ? (
-            <div className="mt-5 rounded-xl border border-dashed border-slate-200 p-6 text-center">
-              <Clock3 className="mx-auto text-slate-400" size={22} />
-              <p className="mt-3 text-sm font-medium text-slate-700">
-                Your recent activity will appear here.
-              </p>
-            </div>
-          ) : (
-            <div className="mt-5 space-y-1">
-              {activity.map((item) => (
-                <div
-                  key={item.id}
-                  className="flex items-start gap-3 rounded-xl p-3 hover:bg-slate-50"
-                >
-                  <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-700">
-                    {item.type === "exchange" && <Handshake size={17} />}
-                    {item.type === "project" && <FolderKanban size={17} />}
-                    {item.type === "contribution" && (
-                      <CheckCircle2 size={17} />
-                    )}
-                  </div>
-
-                  <div className="min-w-0">
-                    <p className="font-semibold text-slate-900">
-                      {item.title}
-                    </p>
-                    <p className="mt-1 text-sm capitalize text-slate-500">
-                      {item.description}
-                    </p>
-                  </div>
-
-                  <span className="ml-auto shrink-0 text-xs text-slate-400">
-                    {formatDate(item.date)}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* MOBILE DISCOVER LINK */}
-      <button
-        type="button"
-        onClick={() => navigate("/discover")}
-        className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-blue-700 sm:hidden"
-      >
-        <Users size={17} />
-        Discover developers
-        <ArrowRight size={16} />
-      </button>
+      </div>
     </div>
   );
 }
