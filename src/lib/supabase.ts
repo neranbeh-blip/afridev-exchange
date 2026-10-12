@@ -11,5 +11,14 @@ if (!supabaseUrl || !supabaseAnonKey) {
 
 export const supabase = createClient(
   supabaseUrl,
-  supabaseAnonKey
+  supabaseAnonKey,
+  {
+    auth: {
+      // Keep the signed-in session across refreshes and browser restarts.
+      // Supabase's Auth dashboard controls any maximum session lifetime (for example, 7 days).
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+    },
+  },
 );

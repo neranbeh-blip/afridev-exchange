@@ -188,7 +188,7 @@ export default function Notifications() {
               key={notification.id}
               type="button"
               onClick={() => void markRead(notification)}
-              className={`flex w-full gap-4 border-b border-slate-100 p-5 text-left transition last:border-b-0 hover:bg-slate-50 ${
+              className={`flex w-full min-w-0 gap-3 border-b border-slate-100 p-4 text-left transition last:border-b-0 hover:bg-slate-50 sm:gap-4 sm:p-5 ${
                 notification.read ? "bg-white" : "bg-blue-50/40"
               }`}
             >
@@ -197,13 +197,13 @@ export default function Notifications() {
               }`} />
 
               <span className="min-w-0 flex-1">
-                <span className="flex flex-col justify-between gap-1 sm:flex-row">
-                  <span className="font-bold text-slate-900">{notification.title}</span>
-                  <span className="text-xs text-slate-400">
+                <span className="flex min-w-0 flex-col justify-between gap-1 sm:flex-row sm:items-start">
+                  <span className="min-w-0 break-words font-bold text-slate-900 [overflow-wrap:anywhere]">{notification.title}</span>
+                  <span className="max-w-full break-words text-left text-xs text-slate-400 [overflow-wrap:anywhere] sm:shrink-0 sm:text-right">
                     {formatDate(notification.created_at)}
                   </span>
                 </span>
-                <span className="mt-1 block text-sm leading-6 text-slate-600">
+                <span className="mt-1 block whitespace-normal break-words text-sm leading-6 text-slate-600 [overflow-wrap:anywhere]">
                   {notification.message}
                 </span>
                 {notification.link && (

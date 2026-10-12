@@ -4,7 +4,10 @@ import {
   Activity,
   Users,
   CheckCircle2,
+  BadgeCheck,
+  Camera,
   ExternalLink,
+  Globe2,
   Link2,
   MapPin,
   Pencil,
@@ -12,8 +15,10 @@ import {
   ShieldCheck,
   Star,
   UserRound,
+  X,
 } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
 import AddSkillModal from "../../components/passport/AddSkillModal";
 import AddEvidenceModal from "../../components/passport/AddEvidenceModal";
@@ -26,6 +31,22 @@ type Profile = {
   city: string | null;
   bio: string | null;
   avatar_url: string | null;
+  github_url?: string | null;
+  linkedin_url?: string | null;
+  website_url?: string | null;
+};
+
+type NetworkType = "followers" | "following";
+
+type NetworkProfile = Profile;
+
+type PassportProject = {
+  id: string;
+  title: string;
+  description: string | null;
+  status: string | null;
+  repository_url: string | null;
+  demo_url: string | null;
 };
 
 type DeveloperSkill = {
@@ -119,9 +140,16 @@ type PassportStats = {
 };
 
 function Passport() {
+  const navigate = useNavigate();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [skills, setSkills] = useState<DeveloperSkill[]>([]);
   const [evidence, setEvidence] = useState<SkillEvidence[]>([]);
+  const [projects, setProjects] = useState<PassportProject[]>([]);
+  const [followerCount, setFollowerCount] = useState(0);
+  const [followingCount, setFollowingCount] = useState(0);
+  const [networkOpen, setNetworkOpen] = useState<NetworkType | null>(null);
+  const [networkLoading, setNetworkLoading] = useState(false);
+  const [networkProfiles, setNetworkProfiles] = useState<NetworkProfile[]>([]);
 
   const [stats, setStats] = useState<PassportStats>({
     projects: 0,
@@ -132,6 +160,7 @@ function Passport() {
   });
 
   const [loading, setLoading] = useState(true);
+  const [avatarUploading, setAvatarUploading] = useState(false);
   const [editing, setEditing] = useState(false);
   const [showAddSkillModal, setShowAddSkillModal] = useState(false);
   const [showAddEvidenceModal, setShowAddEvidenceModal] =
@@ -166,7 +195,7 @@ function Passport() {
         await supabase
           .from("profiles")
           .select(
-            "id, full_name, username, country, city, bio, avatar_url"
+            "id, full_name, username, country, city, bio, avatar_url, github_url, linkedin_url, website_url"
           )
           .eq("id", user.id)
           .single();
@@ -181,6 +210,27 @@ function Passport() {
         setCity(profileData.city || "");
         setCountry(profileData.country || "");
       }
+
+      // Load the developer's social network counts for the Passport.
+      const [followersResult, followingResult] = await Promise.all([
+        supabase
+          .from("developer_follows")
+          .select("follower_id", { count: "exact", head: true })
+          .eq("following_id", user.id),
+        supabase
+          .from("developer_follows")
+          .select("following_id", { count: "exact", head: true })
+          .eq("follower_id", user.id),
+      ]);
+
+      if (followersResult.error) {
+        console.warn("Could not load follower count:", followersResult.error.message);
+      }
+      if (followingResult.error) {
+        console.warn("Could not load following count:", followingResult.error.message);
+      }
+      setFollowerCount(followersResult.count ?? 0);
+      setFollowingCount(followingResult.count ?? 0);
 
       // --------------------------------------------------
       // SKILLS
@@ -255,13 +305,18 @@ function Passport() {
       // EXPERIENCE / ACTIVITY
       // --------------------------------------------------
 
-      const { count: projectCount } = await supabase
+      const { data: projectsData, error: projectsError } = await supabase
         .from("projects")
-        .select("id", {
-          count: "exact",
-          head: true,
-        })
-        .eq("owner_id", user.id);
+        .select("id, title, description, status, repository_url, demo_url")
+        .eq("owner_id", user.id)
+        .order("created_at", { ascending: false });
+
+      if (projectsError) {
+        console.error("Projects loading error:", projectsError);
+      }
+
+      const loadedProjects = (projectsData ?? []) as PassportProject[];
+      setProjects(loadedProjects);
 
       // The exchange_participants table uses developer_id.
       const { data: participantRows, error: participantError } =
@@ -335,7 +390,7 @@ function Passport() {
       ).length;
 
       setStats({
-        projects: projectCount || 0,
+        projects: loadedProjects.length,
         exchanges: completedExchanges,
         participatedExchanges: exchangeIds.length,
         verifiedContributions: verifiedCount || 0,
@@ -345,6 +400,122 @@ function Passport() {
       console.error("Passport loading error:", error);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function changeProfilePicture(file: File | undefined) {
+    if (!file || !profile) return;
+
+    if (!file.type.startsWith("image/")) {
+      alert("Please choose an image file.");
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert("Please choose an image smaller than 5 MB.");
+      return;
+    }
+
+    setAvatarUploading(true);
+    try {
+      const extension = file.name.split(".").pop()?.toLowerCase() || "jpg";
+      const filePath = `${profile.id}/${Date.now()}.${extension}`;
+      const { error: uploadError } = await supabase.storage
+        .from("avatars")
+        .upload(filePath, file, {
+          upsert: true,
+          contentType: file.type,
+        });
+
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage.from("avatars").getPublicUrl(filePath);
+      const avatarUrl = `${data.publicUrl}${data.publicUrl.includes("?") ? "&" : "?"}v=${Date.now()}`;
+
+      const { error: updateError } = await supabase
+        .from("profiles")
+        .update({ avatar_url: avatarUrl })
+        .eq("id", profile.id);
+
+      if (updateError) throw updateError;
+
+      setProfile((current) =>
+        current ? { ...current, avatar_url: avatarUrl } : current,
+      );
+      alert("Profile picture updated successfully.");
+    } catch (error) {
+      console.error("Profile picture upload error:", error);
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Could not update the profile picture.",
+      );
+    } finally {
+      setAvatarUploading(false);
+    }
+  }
+
+  async function loadNetwork(type: NetworkType) {
+    const ownerId = profile?.id;
+    if (!ownerId) return;
+
+    setNetworkOpen(type);
+    setNetworkLoading(true);
+    setNetworkProfiles([]);
+
+    try {
+      // Query each relationship direction separately so TypeScript can
+      // correctly infer the selected column in each branch.
+      let ids: string[];
+
+      if (type === "followers") {
+        const { data, error } = await supabase
+          .from("developer_follows")
+          .select("follower_id")
+          .eq("following_id", ownerId);
+
+        if (error) throw error;
+
+        ids = (data ?? [])
+          .map((row) => row.follower_id)
+          .filter((id): id is string => typeof id === "string" && Boolean(id));
+      } else {
+        const { data, error } = await supabase
+          .from("developer_follows")
+          .select("following_id")
+          .eq("follower_id", ownerId);
+
+        if (error) throw error;
+
+        ids = (data ?? [])
+          .map((row) => row.following_id)
+          .filter((id): id is string => typeof id === "string" && Boolean(id));
+      }
+
+      if (ids.length === 0) {
+        setNetworkProfiles([]);
+        return;
+      }
+
+      const { data: profilesData, error: profilesError } = await supabase
+        .from("profiles")
+        .select("id, full_name, username, country, city, bio, avatar_url, github_url, linkedin_url, website_url")
+        .in("id", ids);
+
+      if (profilesError) throw profilesError;
+
+      const loadedProfiles = (profilesData ?? []) as Profile[];
+      // Preserve the order from developer_follows instead of the profiles query.
+      setNetworkProfiles(
+        ids
+          .map((id) => loadedProfiles.find((person) => person.id === id))
+          .filter((person): person is Profile => Boolean(person)),
+      );
+    } catch (error) {
+      console.error("Could not load Passport network:", error);
+      setNetworkProfiles([]);
+    } finally {
+      setNetworkLoading(false);
     }
   }
 
@@ -415,11 +586,6 @@ function Passport() {
               Developer Passport
             </h1>
 
-            <p className="mt-2 max-w-2xl text-slate-500">
-              Your verified developer identity, capabilities,
-              experience, and contribution history on AfriDev
-              Exchange.
-            </p>
           </div>
 
           <button
@@ -441,9 +607,10 @@ function Passport() {
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="h-28 bg-gradient-to-r from-blue-700 via-blue-600 to-sky-500" />
 
-        <div className="px-6 pb-6">
-          <div className="-mt-12 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
+        <div className="px-4 pb-6 sm:px-6">
+          {/* Keep the identity row horizontal even on phone-sized screens so the name and verification badge stay visible beside the avatar. */}
+          <div className="-mt-12 grid grid-cols-[6rem_minmax(0,1fr)] items-end gap-4 min-[480px]:grid-cols-[8rem_minmax(0,1fr)] sm:gap-5">
+            <div className="relative h-24 w-24 shrink-0">
               {profile?.avatar_url ? (
                 <img
                   src={profile.avatar_url}
@@ -456,53 +623,86 @@ function Passport() {
                 </div>
               )}
 
-              <div className="pb-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="text-2xl font-bold text-slate-950">
-                    {profile?.full_name || "Developer"}
-                  </h2>
+              <label
+                title="Change profile picture"
+                aria-label="Change profile picture"
+                className={`absolute -bottom-2 -right-2 inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border-2 border-white bg-blue-700 text-white shadow-md transition hover:bg-blue-800 ${avatarUploading ? "pointer-events-none opacity-60" : ""}`}
+              >
+                <Camera size={16} aria-hidden="true" />
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="sr-only"
+                  disabled={avatarUploading}
+                  onChange={(event) => {
+                    const file = event.currentTarget.files?.[0];
+                    void changeProfilePicture(file);
+                    event.currentTarget.value = "";
+                  }}
+                />
+              </label>
+              {avatarUploading && (
+                <span className="absolute -bottom-8 left-0 whitespace-nowrap text-[11px] font-medium text-blue-700">
+                  Uploading photo…
+                </span>
+              )}
+            </div>
 
-                  <CheckCircle2
-                    size={20}
-                    className="text-blue-600"
-                  />
-                </div>
+            <div className="min-w-0 self-start pt-12">
+              <div className="flex min-w-0 flex-wrap items-center gap-2">
+                <h2 className="min-w-0 break-words text-xl font-bold leading-tight text-slate-950 min-[480px]:text-2xl">
+                  {profile?.full_name || "Developer"}
+                </h2>
+                <BadgeCheck
+                  size={21}
+                  aria-label="Verified developer"
+                  className="shrink-0 text-blue-600"
+                />
+              </div>
 
-                {profile?.username && (
-                  <p className="text-sm text-slate-500">
-                    @{profile.username}
-                  </p>
+              {profile?.username && (
+                <p className="mt-0.5 break-words text-sm text-slate-500">
+                  @{profile.username}
+                </p>
+              )}
+
+              <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-sm text-slate-500">
+                {(profile?.city || profile?.country) && (
+                  <span className="inline-flex items-center gap-1.5">
+                    <MapPin size={15} className="shrink-0" />
+                    {[profile.city, profile.country]
+                      .filter(Boolean)
+                      .join(", ")}
+                  </span>
                 )}
 
-                <div className="mt-2 flex flex-wrap gap-3 text-sm text-slate-500">
-                  {(profile?.city || profile?.country) && (
-                    <span className="inline-flex items-center gap-1.5">
-                      <MapPin size={15} />
-
-                      {[profile.city, profile.country]
-                        .filter(Boolean)
-                        .join(", ")}
-                    </span>
-                  )}
-
-                  <span className="inline-flex items-center gap-1.5">
-                    <UserRound size={15} />
-                    African Developer
-                  </span>
-                </div>
+                <span className="inline-flex items-center gap-1.5">
+                  <UserRound size={15} className="shrink-0" />
+                  African Developer
+                </span>
               </div>
             </div>
+          </div>
 
-            <div className="rounded-xl bg-blue-50 px-4 py-3">
-              <div className="flex items-center gap-2 text-sm font-semibold text-blue-700">
-                <ShieldCheck size={18} />
-                AfriDev Passport
-              </div>
-
-              <p className="mt-1 text-xs text-blue-600">
-                Identity & contribution record
-              </p>
-            </div>
+          <div className="mt-4 flex flex-wrap gap-3 border-t border-slate-100 pt-4">
+            <button
+              type="button"
+              onClick={() => void loadNetwork("followers")}
+              className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm transition hover:border-blue-200 hover:bg-blue-50"
+              aria-label={`View ${followerCount} followers`}
+            >
+              <span className="font-bold text-slate-900">{followerCount}</span>{" "}
+              <span className="text-slate-500">Followers</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => void loadNetwork("following")}
+              className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm transition hover:border-blue-200 hover:bg-blue-50"
+              aria-label={`View ${followingCount} followed developers`}
+            >
+              <span className="font-bold text-slate-900">{followingCount}</span>{" "}
+              <span className="text-slate-500">Following</span>
+            </button>
           </div>
 
           {/* Edit Profile */}
@@ -577,53 +777,28 @@ function Passport() {
               </p>
             </div>
           )}
+
+          {(profile?.github_url || profile?.website_url || profile?.linkedin_url) && (
+            <div className="mt-5 flex flex-wrap gap-2 border-t border-slate-100 pt-5">
+              {profile.github_url && (
+                <a href={profile.github_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700">
+                  GitHub <ExternalLink size={14} />
+                </a>
+              )}
+              {profile.website_url && (
+                <a href={profile.website_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700">
+                  Website <ExternalLink size={14} />
+                </a>
+              )}
+              {profile.linkedin_url && (
+                <a href={profile.linkedin_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700">
+                  LinkedIn <ExternalLink size={14} />
+                </a>
+              )}
+            </div>
+          )}
         </div>
       </section>
-
-      {/* ------------------------------------------------ */}
-      {/* CAPABILITY / TRUST */}
-      {/* ------------------------------------------------ */}
-
-      <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="flex items-start gap-4">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-100 text-blue-700">
-              <Star size={21} />
-            </div>
-
-            <div>
-              <h3 className="font-bold text-slate-950">
-                Capability
-              </h3>
-
-              <p className="mt-1 text-sm leading-6 text-slate-500">
-                What you can do, based on skills, evidence,
-                projects, experience, and professional signals.
-              </p>
-            </div>
-          </div>
-        </section>
-
-        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="flex items-start gap-4">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
-              <ShieldCheck size={21} />
-            </div>
-
-            <div>
-              <h3 className="font-bold text-slate-950">
-                AfriDev Trust & Experience
-              </h3>
-
-              <p className="mt-1 text-sm leading-6 text-slate-500">
-                How you have performed through exchanges,
-                collaborations, verified contributions, and
-                feedback.
-              </p>
-            </div>
-          </div>
-        </section>
-      </div>
 
       <section className="mt-6 grid gap-4 sm:grid-cols-3">
         <SignalCard
@@ -659,10 +834,6 @@ function Passport() {
               Skills & Capabilities
             </h2>
 
-            <p className="mt-1 text-sm text-slate-500">
-              Your technical capabilities and declared
-              proficiency.
-            </p>
           </div>
 
           <button
@@ -756,10 +927,6 @@ function Passport() {
               Skill Evidence
             </h2>
 
-            <p className="mt-1 text-sm text-slate-500">
-              Evidence helps other developers understand what you
-              can actually build.
-            </p>
           </div>
 
           <button
@@ -875,10 +1042,6 @@ function Passport() {
               AfriDev Experience
             </h2>
 
-            <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-500">
-              A record of what you have actually done on AfriDev Exchange.
-              These signals are separate from your technical capability.
-            </p>
           </div>
 
           <div className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700">
@@ -917,98 +1080,156 @@ function Passport() {
           />
         </div>
 
-        <div className="mt-6 grid gap-4 md:grid-cols-2">
-          <div className="rounded-xl border border-slate-200 bg-slate-50 p-5">
-            <div className="flex items-start gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700">
-                <ShieldCheck size={20} />
-              </div>
+      </section>
 
-              <div>
-                <h3 className="font-semibold text-slate-950">
-                  Verified work
-                </h3>
-                <p className="mt-1 text-sm leading-6 text-slate-500">
-                  {stats.verifiedContributions > 0
-                    ? `${stats.verifiedContributions} contribution${
-                        stats.verifiedContributions === 1 ? "" : "s"
-                      } have been verified by exchange partners.`
-                    : "Verified contributions will appear here as your work is reviewed."}
-                </p>
-              </div>
-            </div>
-          </div>
 
-          <div className="rounded-xl border border-slate-200 bg-slate-50 p-5">
-            <div className="flex items-start gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-blue-700">
-                <Link2 size={20} />
-              </div>
-
-              <div>
-                <h3 className="font-semibold text-slate-950">
-                  Verified evidence
-                </h3>
-                <p className="mt-1 text-sm leading-6 text-slate-500">
-                  {stats.verifiedEvidence > 0
-                    ? `${stats.verifiedEvidence} evidence item${
-                        stats.verifiedEvidence === 1 ? "" : "s"
-                      } currently marked as verified.`
-                    : "Evidence can strengthen your capability profile as it is verified."}
-                </p>
-              </div>
-            </div>
-          </div>
+      <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="mb-4">
+          <p className="text-sm font-semibold uppercase tracking-wider text-blue-600">
+            Build history
+          </p>
+          <h2 className="mt-1 text-xl font-bold text-slate-950">Projects</h2>
         </div>
 
-        <div className="mt-6 rounded-xl border border-blue-100 bg-blue-50 p-5">
-          <div className="flex items-start gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-700 text-white">
-              <Users size={20} />
-            </div>
-
-            <div>
-              <h3 className="font-semibold text-slate-950">
-                Trust grows from real collaboration
-              </h3>
-              <p className="mt-1 text-sm leading-6 text-slate-600">
-                AfriDev does not reduce your professional identity to one
-                arbitrary score. Your capabilities come from skills and
-                evidence, while your AfriDev experience comes from completed
-                exchanges, participation, and verified work.
-              </p>
-            </div>
+        {projects.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
+            <BriefcaseBusiness size={32} className="mx-auto mb-3 text-slate-600" />
+            <p className="text-sm text-slate-500">No public projects yet.</p>
           </div>
-        </div>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2">
+            {projects.map((project) => (
+              <div key={project.id} className="rounded-xl border border-slate-200 p-5 transition hover:border-blue-200 hover:shadow-sm">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <h3 className="break-words font-semibold text-slate-950">{project.title}</h3>
+                    {project.status && (
+                      <span className="mt-2 inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs capitalize text-slate-500">
+                        {project.status.replace("_", " ")}
+                      </span>
+                    )}
+                  </div>
+                  <button type="button" onClick={() => navigate(`/projects/${project.id}`)} className="rounded-lg bg-slate-100 p-2 transition hover:bg-blue-50 hover:text-blue-700" aria-label="View project">
+                    <ExternalLink size={16} />
+                  </button>
+                </div>
+                {project.description && (
+                  <p className="mt-4 line-clamp-3 text-sm leading-6 text-slate-500">{project.description}</p>
+                )}
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {project.repository_url && (
+                    <a href={project.repository_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100">
+                      <ExternalLink size={13} /> Repository
+                    </a>
+                  )}
+                  {project.demo_url && (
+                    <a href={project.demo_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100">
+                      <Globe2 size={13} /> Live Demo
+                    </a>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
 
       {/* ------------------------------------------------ */}
       {/* FOOTER */}
       {/* ------------------------------------------------ */}
 
-      <div className="mt-8 rounded-2xl border border-blue-100 bg-blue-50 p-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-blue-700 text-white">
-            <ShieldCheck size={24} />
-          </div>
-
-          <div>
-            <h3 className="font-bold text-slate-950">
-              Your Passport grows with your work
-            </h3>
-
-            <p className="mt-1 text-sm leading-6 text-slate-600">
-              As you exchange skills, collaborate on projects, and
-              complete verified contributions, your AfriDev
-              experience becomes part of your developer history.
-            </p>
-          </div>
-        </div>
-      </div>
-
       {/* ------------------------------------------------ */}
       {/* MODALS */}
       {/* ------------------------------------------------ */}
+
+      {networkOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/60 p-4 backdrop-blur-sm"
+          onClick={() => setNetworkOpen(null)}
+        >
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="passport-network-title"
+            className="max-h-[85vh] w-full max-w-lg overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+              <div>
+                <h2 id="passport-network-title" className="text-xl font-bold text-slate-950">
+                  {networkOpen === "followers" ? "Followers" : "Following"}
+                </h2>
+                <p className="mt-1 text-xs text-slate-500">
+                  {networkProfiles.length} developer{networkProfiles.length === 1 ? "" : "s"}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setNetworkOpen(null)}
+                className="rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 hover:text-blue-700"
+                aria-label="Close followers and following"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="max-h-[70vh] overflow-y-auto p-4">
+              {networkLoading ? (
+                <div className="py-12 text-center">
+                  <div className="mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-2 border-blue-400 border-t-transparent" />
+                  <p className="text-sm text-slate-500">Loading developers...</p>
+                </div>
+              ) : networkProfiles.length === 0 ? (
+                <div className="py-12 text-center">
+                  <Users className="mx-auto mb-3 text-slate-400" size={36} />
+                  <p className="text-sm text-slate-500">No developers here yet.</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {networkProfiles.map((person) => {
+                    const name = person.full_name || person.username || "Developer";
+                    const initials = name
+                      .split(/\s+/)
+                      .filter(Boolean)
+                      .slice(0, 2)
+                      .map((part) => part[0]?.toUpperCase())
+                      .join("") || "DV";
+
+                    return (
+                      <button
+                        key={person.id}
+                        type="button"
+                        onClick={() => {
+                          setNetworkOpen(null);
+                          navigate(`/developer/${person.id}`);
+                        }}
+                        className="flex w-full min-w-0 items-center gap-3 rounded-xl border border-slate-200 p-3 text-left transition hover:border-blue-200 hover:bg-blue-50/50"
+                      >
+                        {person.avatar_url ? (
+                          <img src={person.avatar_url} alt={name} className="h-12 w-12 shrink-0 rounded-xl border border-slate-200 object-cover" />
+                        ) : (
+                          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-blue-100 bg-blue-100 font-bold text-blue-700">
+                            {initials}
+                          </span>
+                        )}
+                        <span className="min-w-0 flex-1">
+                          <span className="block break-words font-semibold text-slate-900">{name}</span>
+                          {person.username && <span className="block break-words text-xs text-slate-500">@{person.username}</span>}
+                          {(person.city || person.country) && (
+                            <span className="mt-0.5 block break-words text-xs text-slate-500">
+                              {[person.city, person.country].filter(Boolean).join(", ")}
+                            </span>
+                          )}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </section>
+        </div>
+      )}
 
       {showAddSkillModal && (
         <AddSkillModal
