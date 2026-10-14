@@ -12,6 +12,7 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
+import DeepLText from "../../components/layout/DeepLText";
 
 type Skill = {
   id: string;
@@ -291,13 +292,12 @@ function Problems() {
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       <div className="flex flex-col justify-between gap-5 md:flex-row md:items-end">
         <div>
-          <p className="text-sm font-semibold text-blue-600">Community Problems</p>
+          <p className="text-sm font-semibold text-blue-600"><DeepLText text={"Community Problems"} /></p>
           <h1 className="mt-1 text-3xl font-bold tracking-tight text-slate-950">
-            Turn real problems into real projects
+            <DeepLText text={"Turn real problems into real projects"} />
           </h1>
           <p className="mt-2 max-w-2xl text-slate-500">
-            Discover problems posted by African developers, bring your skills,
-            and turn promising problems into collaborative projects.
+            <DeepLText text={"Discover problems posted by African developers, bring your skills,\n            and turn promising problems into collaborative projects."} />
           </p>
         </div>
 
@@ -310,7 +310,7 @@ function Problems() {
           className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-700 px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-blue-800"
         >
           <Plus size={17} />
-          Post a Problem
+          <DeepLText text={"Post a Problem"} />
         </button>
       </div>
 
@@ -321,11 +321,10 @@ function Problems() {
           </div>
           <div>
             <h2 className="font-bold text-slate-950">
-              From problem to project
+              <DeepLText text={"From problem to project"} />
             </h2>
             <p className="mt-1 text-sm leading-6 text-slate-600">
-              A problem can become a project when the right developers come
-              together. Required skills are preserved during conversion.
+              <DeepLText text={"A problem can become a project when the right developers come\n              together. Required skills are preserved during conversion."} />
             </p>
           </div>
         </div>
@@ -362,7 +361,7 @@ function Problems() {
             onChange={(event) => setCategory(event.target.value)}
             className="w-full appearance-none rounded-xl border border-slate-200 bg-white py-3 pl-10 pr-4 text-sm outline-none focus:border-blue-500"
           >
-            <option value="all">All categories</option>
+            <option value="all"><DeepLText text={"All categories"} /></option>
             {categories.map((item) => (
               <option key={item} value={item}>
                 {item}
@@ -379,9 +378,9 @@ function Problems() {
       ) : filteredProblems.length === 0 ? (
         <div className="mt-8 rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center">
           <AlertCircle className="mx-auto text-slate-300" size={34} />
-          <h2 className="mt-4 font-bold text-slate-800">No problems found</h2>
+          <h2 className="mt-4 font-bold text-slate-800"><DeepLText text={"No problems found"} /></h2>
           <p className="mt-1 text-sm text-slate-500">
-            Try another search or be the first developer to post a problem.
+            <DeepLText text={"Try another search or be the first developer to post a problem."} />
           </p>
         </div>
       ) : (
@@ -403,7 +402,7 @@ function Problems() {
                       : "bg-slate-100 text-slate-600"
                   }`}
                 >
-                  {problem.converted_project_id ? "Project created" : problem.status}
+                  {problem.converted_project_id ? <DeepLText text={"Project created"} /> : problem.status}
                 </span>
               </div>
 
@@ -452,7 +451,7 @@ function Problems() {
                 to={`/problems/${problem.id}`}
                 className="mt-6 inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
               >
-                View Problem
+                <DeepLText text={"View Problem"} />
                 <ArrowRight size={16} />
               </Link>
             </article>
@@ -466,10 +465,10 @@ function Problems() {
             <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
               <div>
                 <p className="text-sm font-semibold text-blue-600">
-                  Community Problems
+                  <DeepLText text={"Community Problems"} />
                 </p>
                 <h2 className="text-xl font-bold text-slate-950">
-                  Post a Problem
+                  <DeepLText text={"Post a Problem"} />
                 </h2>
               </div>
               <button
@@ -568,7 +567,7 @@ function Problems() {
                   onClick={resetForm}
                   className="rounded-xl border border-slate-200 px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
                 >
-                  Cancel
+                  <DeepLText text={"Cancel"} />
                 </button>
                 <button
                   type="button"
@@ -576,7 +575,7 @@ function Problems() {
                   disabled={creating}
                   className="rounded-xl bg-blue-700 px-5 py-3 text-sm font-semibold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {creating ? "Publishing..." : "Publish Problem"}
+                  {creating ? <DeepLText text={"Publishing..."} /> : "Publish Problem"}
                 </button>
               </div>
             </div>

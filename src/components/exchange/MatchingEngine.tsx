@@ -1332,6 +1332,8 @@ function ExchangeRequestModal({
           type: "exchange_request",
           title: "New exchange request",
           message: `${senderEmail} sent you an exchange request.`,
+          translation_key: "exchange_request",
+          translation_params: { sender: senderEmail },
           link: `/exchange`,
         });
 

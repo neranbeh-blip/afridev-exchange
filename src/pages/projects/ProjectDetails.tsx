@@ -8,12 +8,15 @@ import {
   Sparkles,
   Users,
   XCircle,
+  Upload,
+  Image as ImageIcon,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
 
 import { supabase } from "../../lib/supabase";
+import DeepLText from "../../components/layout/DeepLText";
 
 type Skill = {
   id: string;
@@ -29,6 +32,7 @@ type ProjectMember = {
 };
 
 type ProjectStatus = "idea" | "open" | "in_progress" | "completed";
+type ProjectVisibility = "public" | "private";
 
 type Project = {
   id: string;
@@ -36,6 +40,7 @@ type Project = {
   title: string;
   description: string;
   status: ProjectStatus;
+  visibility: ProjectVisibility;
   repository_url: string | null;
   demo_url: string | null;
   created_at: string;
@@ -97,6 +102,11 @@ function ProjectDetails() {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiLoaded, setAiLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showCompletionModal, setShowCompletionModal] = useState(false);
+  const [resultFiles, setResultFiles] = useState<File[]>([]);
+  const [resultDemoUrl, setResultDemoUrl] = useState("");
+  const [resultRepositoryUrl, setResultRepositoryUrl] = useState("");
+  const [completing, setCompleting] = useState(false);
 
   async function loadProject() {
     if (!projectId) {
@@ -120,7 +130,7 @@ function ProjectDetails() {
       const { data: projectRow, error: projectError } = await supabase
         .from("projects")
         .select(
-          "id, owner_id, title, description, status, repository_url, demo_url, created_at, updated_at"
+          "id, owner_id, title, description, status, visibility, repository_url, demo_url, created_at, updated_at"
         )
         .eq("id", projectId)
         .single();
@@ -398,6 +408,15 @@ function ProjectDetails() {
   async function changeProjectStatus(nextStatus: ProjectStatus) {
     if (!project || project.owner_id !== currentUserId) return;
 
+    if (nextStatus === "completed" && project.visibility === "public") {
+      setResultFiles([]);
+      setResultDemoUrl(project.demo_url ?? "");
+      setResultRepositoryUrl(project.repository_url ?? "");
+      setError(null);
+      setShowCompletionModal(true);
+      return;
+    }
+
     const allowedNextStatus: Record<ProjectStatus, ProjectStatus | null> = {
       idea: "open",
       open: "in_progress",
@@ -430,6 +449,116 @@ function ProjectDetails() {
           ? err.message
           : "Unable to change the project status."
       );
+    }
+  }
+
+  async function completePublicProject() {
+    if (!project || project.owner_id !== currentUserId) return;
+
+    if (project.visibility !== "public") {
+      setShowCompletionModal(false);
+      await changeProjectStatus("completed");
+      return;
+    }
+
+    if (resultFiles.length === 0) {
+      setError("Upload at least one image from your device before marking this project completed.");
+      return;
+    }
+
+    if (resultFiles.some((file) => !file.type.startsWith("image/"))) {
+      setError("Only image files are accepted for completed project results.");
+      return;
+    }
+
+    const validUrl = (value: string) => {
+      if (!value.trim()) return true;
+      try {
+        const parsed = new URL(value.trim());
+        return parsed.protocol === "https:" || parsed.protocol === "http:";
+      } catch {
+        return false;
+      }
+    };
+
+    if (!validUrl(resultDemoUrl) || !validUrl(resultRepositoryUrl)) {
+      setError("Enter valid http:// or https:// links for the live demo and source code.");
+      return;
+    }
+
+    const uploadedPaths: string[] = [];
+
+    try {
+      setCompleting(true);
+      setError(null);
+
+      const mediaRows: Array<{ project_id: string; media_url: string; media_type: "image" }> = [];
+
+      for (const file of resultFiles) {
+        const extension = file.name.split(".").pop()?.toLowerCase() || "jpg";
+        const filePath = `${project.id}/${crypto.randomUUID()}.${extension}`;
+        const { error: uploadError } = await supabase.storage
+          .from("project-results")
+          .upload(filePath, file, {
+            cacheControl: "3600",
+            upsert: false,
+            contentType: file.type,
+          });
+        if (uploadError) throw uploadError;
+        uploadedPaths.push(filePath);
+
+        const { data: publicUrlData } = supabase.storage
+          .from("project-results")
+          .getPublicUrl(filePath);
+
+        mediaRows.push({
+          project_id: project.id,
+          media_url: publicUrlData.publicUrl,
+          media_type: "image",
+        });
+      }
+
+      const { error: mediaError } = await supabase
+        .from("project_media")
+        .insert(mediaRows);
+      if (mediaError) throw mediaError;
+
+      const { error: updateError } = await supabase
+        .from("projects")
+        .update({
+          status: "completed",
+          demo_url: resultDemoUrl.trim() || null,
+          repository_url: resultRepositoryUrl.trim() || null,
+        })
+        .eq("id", project.id)
+        .eq("owner_id", currentUserId)
+        .neq("status", "completed");
+
+      if (updateError) throw updateError;
+
+      setProject((current) =>
+        current
+          ? {
+              ...current,
+              status: "completed",
+              demo_url: resultDemoUrl.trim() || null,
+              repository_url: resultRepositoryUrl.trim() || null,
+            }
+          : current
+      );
+      setResultFiles([]);
+      setShowCompletionModal(false);
+    } catch (err) {
+      console.error("Project completion error:", err);
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Unable to complete the project. Please check your storage and database policies."
+      );
+      // Leave uploaded objects in storage if a later DB step fails so the owner can retry;
+      // paths are unique and do not overwrite existing files.
+    } finally {
+      setCompleting(false);
     }
   }
 
@@ -508,6 +637,8 @@ function ProjectDetails() {
           type: "project",
           title: "New project application",
           message: `A developer applied to collaborate on "${project.title}".`,
+          translation_key: "project_application",
+          translation_params: { title: project.title },
           link: `/projects/${project.id}`,
         });
 
@@ -605,6 +736,8 @@ function ProjectDetails() {
           type: "project",
           title: notificationTitle,
           message: notificationMessage,
+          translation_key: decision === "accepted" ? "project_application_accepted" : "project_application_rejected",
+          translation_params: { title: project.title },
           link: `/projects/${project.id}`,
         });
 
@@ -677,14 +810,14 @@ function ProjectDetails() {
     return (
       <div className="mx-auto max-w-5xl px-4 py-12 sm:px-6">
         <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-sm text-red-700">
-          {error}
+          {<DeepLText text={error} />}
         </div>
         <Link
           to="/projects"
           className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-blue-700"
         >
           <ArrowLeft size={16} />
-          Back to Projects
+          <DeepLText text='Back to Projects' />
         </Link>
       </div>
     );
@@ -715,32 +848,32 @@ function ProjectDetails() {
   );
 
   return (
-    <div className="mx-auto w-full min-w-0 max-w-5xl overflow-x-clip px-3 py-6 sm:px-6 sm:py-8 lg:px-8">
+    <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
       <Link
         to="/projects"
         className="inline-flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-blue-700"
       >
         <ArrowLeft size={16} />
-        Back to Projects
+        <DeepLText text='Back to Projects' />
       </Link>
 
       {error && (
         <div className="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error}
+          {<DeepLText text={error} />}
         </div>
       )}
 
       <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="border-b border-slate-100 bg-gradient-to-r from-blue-50 to-white p-6 sm:p-8">
           <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
-            <div className="flex min-w-0 gap-3 sm:gap-4">
+            <div className="flex gap-4">
               <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-blue-700 text-white">
                 <FolderKanban size={25} />
               </div>
 
-              <div className="min-w-0 flex-1">
+              <div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <h1 className="break-words [overflow-wrap:anywhere] text-2xl font-bold text-slate-950 sm:text-3xl">
+                  <h1 className="text-2xl font-bold text-slate-950 sm:text-3xl">
                     {project.title}
                   </h1>
                   <StatusBadge status={project.status} />
@@ -755,19 +888,19 @@ function ProjectDetails() {
 
             {isOwner && (
               <span className="rounded-full bg-blue-100 px-3 py-1.5 text-xs font-semibold text-blue-700">
-                Project Owner
+                <DeepLText text='Project Owner' />
               </span>
             )}
           </div>
         </div>
 
-        <div className="grid min-w-0 gap-5 p-4 sm:gap-8 sm:p-8 lg:grid-cols-[minmax(0,1fr)_300px]">
+        <div className="grid gap-8 p-6 sm:p-8 lg:grid-cols-[1fr_300px]">
           <div>
             <h2 className="text-sm font-bold uppercase tracking-wide text-slate-400">
-              About this project
+              <DeepLText text='About this project' />
             </h2>
 
-            <p className="mt-3 whitespace-pre-wrap break-words [overflow-wrap:anywhere] text-sm leading-7 text-slate-700">
+            <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-slate-700">
               {project.description}
             </p>
 
@@ -779,7 +912,7 @@ function ProjectDetails() {
                   rel="noreferrer"
                   className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
                 >
-                  Repository
+                  <DeepLText text='Repository' />
                   <ExternalLink size={15} />
                 </a>
               )}
@@ -791,7 +924,7 @@ function ProjectDetails() {
                   rel="noreferrer"
                   className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
                 >
-                  Demo
+                  <DeepLText text='Demo' />
                   <ExternalLink size={15} />
                 </a>
               )}
@@ -813,7 +946,7 @@ function ProjectDetails() {
 
           <aside className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-              Project Owner
+              <DeepLText text='Project Owner' />
             </p>
 
             <div className="mt-3">
@@ -842,14 +975,14 @@ function ProjectDetails() {
                 className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-blue-700 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-800"
               >
                 <FolderKanban size={16} />
-                Open Project Workspace
+                <DeepLText text='Open Project Workspace' />
               </Link>
             )}
 
             {isOwner && (
               <div className="mt-6 rounded-xl border border-blue-100 bg-white p-4">
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                  Project lifecycle
+                  <DeepLText text='Project lifecycle' />
                 </p>
                 <p className="mt-2 text-sm font-semibold text-slate-900">
                   {project.status === "idea"
@@ -890,7 +1023,7 @@ function ProjectDetails() {
                 {canApply && (
                   <form onSubmit={applyToProject}>
                     <label className="mb-2 block text-sm font-semibold text-slate-700">
-                      How can you contribute?
+                      <DeepLText text='How can you contribute?' />
                     </label>
 
                     <textarea
@@ -911,7 +1044,7 @@ function ProjectDetails() {
                       ) : (
                         <Send size={16} />
                       )}
-                      {submitting ? "Sending..." : "Apply to Collaborate"}
+                      {submitting ? <DeepLText text="Sending..." /> : <DeepLText text="Apply to Collaborate" />}
                     </button>
                   </form>
                 )}
@@ -919,7 +1052,7 @@ function ProjectDetails() {
                 {existingApplication && (
                   <div className="rounded-xl border border-blue-100 bg-white p-4">
                     <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                      Your application
+                      <DeepLText text='Your application' />
                     </p>
 
                     <p className="mt-2 text-sm font-bold text-slate-900">
@@ -938,7 +1071,7 @@ function ProjectDetails() {
 
                     {existingApplication.status === "accepted" && (
                       <div className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-700">
-                        You are accepted as a project collaborator.
+                        <DeepLText text='You are accepted as a project collaborator.' />
                       </div>
                     )}
                   </div>
@@ -961,14 +1094,14 @@ function ProjectDetails() {
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-bold text-slate-950">Required Skills</h2>
+          <h2 className="text-lg font-bold text-slate-950"><DeepLText text='Required Skills' /></h2>
           <p className="mt-1 text-sm text-slate-500">
-            Skills this project is looking for from collaborators.
+            <DeepLText text='Skills this project is looking for from collaborators.' />
           </p>
 
           {project.required_skills.length === 0 ? (
             <p className="mt-5 text-sm text-slate-500">
-              No specific skills have been added yet.
+              <DeepLText text='No specific skills have been added yet.' />
             </p>
           ) : (
             <div className="mt-5 flex flex-wrap gap-2">
@@ -986,14 +1119,14 @@ function ProjectDetails() {
         </section>
 
         <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-bold text-slate-950">Project Team</h2>
+          <h2 className="text-lg font-bold text-slate-950"><DeepLText text='Project Team' /></h2>
           <p className="mt-1 text-sm text-slate-500">
-            Developers currently working on this project.
+            <DeepLText text='Developers currently working on this project.' />
           </p>
 
           {members.length === 0 ? (
             <p className="mt-5 text-sm text-slate-500">
-              No team members yet.
+              <DeepLText text='No team members yet.' />
             </p>
           ) : (
             <div className="mt-5 space-y-3">
@@ -1046,7 +1179,7 @@ function ProjectDetails() {
                   <Sparkles size={17} />
                 </div>
                 <h2 className="text-lg font-bold text-slate-950">
-                  AI Collaborator Matching
+                  <DeepLText text='AI Collaborator Matching' />
                 </h2>
               </div>
 
@@ -1069,11 +1202,11 @@ function ProjectDetails() {
                 <Sparkles size={16} />
               )}
 
-              {aiLoading
+              {<DeepLText text={aiLoading
                 ? "Finding collaborators..."
                 : aiLoaded
                   ? "Refresh AI Matches"
-                  : "Find Collaborators"}
+                  : "Find Collaborators"} />}
             </button>
           </div>
 
@@ -1082,7 +1215,7 @@ function ProjectDetails() {
               {aiCollaborators.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-slate-200 bg-white p-6 text-center">
                   <p className="text-sm font-semibold text-slate-700">
-                    No strong collaborator matches found yet.
+                    <DeepLText text='No strong collaborator matches found yet.' />
                   </p>
 
                   <p className="mt-1 text-xs text-slate-500">
@@ -1145,7 +1278,7 @@ function ProjectDetails() {
                         {candidate.matching_skills.length > 0 && (
                           <div className="mt-4">
                             <p className="text-[11px] font-bold uppercase tracking-wide text-slate-400">
-                              Matching skills
+                              <DeepLText text='Matching skills' />
                             </p>
 
                             <div className="mt-2 flex flex-wrap gap-2">
@@ -1177,7 +1310,7 @@ function ProjectDetails() {
                           to={`/developer/${candidate.developer_id}`}
                           className="mt-4 inline-flex items-center justify-center rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
                         >
-                          View Developer Passport
+                          <DeepLText text='View Developer Passport' />
                         </Link>
                       </div>
                     );
@@ -1194,10 +1327,10 @@ function ProjectDetails() {
           <div className="flex items-center justify-between gap-4">
             <div>
               <h2 className="text-lg font-bold text-slate-950">
-                Collaboration applications
+                <DeepLText text='Collaboration applications' />
               </h2>
               <p className="mt-1 text-sm text-slate-500">
-                Review developers who want to contribute to your project.
+                <DeepLText text='Review developers who want to contribute to your project.' />
               </p>
             </div>
 
@@ -1210,10 +1343,10 @@ function ProjectDetails() {
             <div className="mt-6 rounded-xl border border-dashed border-slate-200 p-8 text-center">
               <Users className="mx-auto h-8 w-8 text-slate-300" />
               <p className="mt-3 text-sm font-semibold text-slate-700">
-                No applications yet
+                <DeepLText text='No applications yet' />
               </p>
               <p className="mt-1 text-xs text-slate-500">
-                Developers will appear here when they apply.
+                <DeepLText text='Developers will appear here when they apply.' />
               </p>
             </div>
           ) : (
@@ -1287,7 +1420,7 @@ function ProjectDetails() {
                         className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-60"
                       >
                         <XCircle size={14} />
-                        Reject
+                        <DeepLText text='Reject' />
                       </button>
                     </div>
                   )}
@@ -1296,6 +1429,99 @@ function ProjectDetails() {
             </div>
           )}
         </section>
+      )}
+
+      {showCompletionModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-semibold text-blue-600"><DeepLText text='PROJECT RESULTS' /></p>
+                <h2 className="mt-1 text-xl font-bold text-slate-950">
+                  <DeepLText text='Publish your completed project' />
+                </h2>
+                <p className="mt-2 text-sm leading-6 text-slate-500">
+                  <DeepLText text='Upload one or more result images directly from your device. Add a live demo link and a source-code repository link so other developers can explore or download your work. These details must be provided before completion.' />
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowCompletionModal(false)}
+                className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                disabled={completing}
+              >
+                <XCircle size={22} />
+              </button>
+            </div>
+
+            <label className="mt-6 flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 px-6 py-10 text-center hover:border-blue-300 hover:bg-blue-50/40">
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                className="hidden"
+                onChange={(event) => setResultFiles(Array.from(event.target.files ?? []))}
+              />
+              <ImageIcon className="h-10 w-10 text-blue-600" />
+              <p className="mt-3 text-sm font-semibold text-slate-800">
+                {resultFiles.length ? `${resultFiles.length} image(s) selected` : <DeepLText text="Choose result images from your device" />}
+              </p>
+              <p className="mt-1 text-xs text-slate-500"><DeepLText text='PNG, JPG, JPEG or WEBP · You can select multiple images' /></p>
+              {resultFiles.length > 0 && (
+                <ul className="mt-3 space-y-1 text-left text-xs text-slate-600">
+                  {resultFiles.map((file) => <li key={`${file.name}-${file.size}`}>{file.name}</li>)}
+                </ul>
+              )}
+            </label>
+
+            <div className="mt-4 grid gap-3">
+              <div>
+                <label className="text-xs font-semibold text-slate-700"><DeepLText text='Live demo / result link (optional)' /></label>
+                <input
+                  type="url"
+                  value={resultDemoUrl}
+                  onChange={(event) => setResultDemoUrl(event.target.value)}
+                  placeholder="https://your-live-project.example"
+                  className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-blue-400"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-slate-700"><DeepLText text='Source code / repository link (optional)' /></label>
+                <input
+                  type="url"
+                  value={resultRepositoryUrl}
+                  onChange={(event) => setResultRepositoryUrl(event.target.value)}
+                  placeholder="https://github.com/username/project"
+                  className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-blue-400"
+                />
+              </div>
+            </div>
+
+            <div className="mt-5 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setShowCompletionModal(false)}
+                disabled={completing}
+                className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+              >
+                <DeepLText text='Cancel' />
+              </button>
+              <button
+                type="button"
+                onClick={() => void completePublicProject()}
+                disabled={resultFiles.length === 0 || completing}
+                className="inline-flex items-center gap-2 rounded-xl bg-blue-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {completing ? (
+                  <Loader2 size={16} className="animate-spin" />
+                ) : (
+                  <Upload size={16} />
+                )}
+                {completing ? <DeepLText text="Uploading & publishing..." /> : <DeepLText text="Upload Results & Complete" />}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -1315,7 +1541,7 @@ function StatusBadge({ status }: { status: string }) {
     <span
       className={`rounded-full px-2.5 py-1 text-[11px] font-semibold capitalize ${config}`}
     >
-      {status.replace("_", " ")}
+      {<DeepLText text={status.replace("_", " ")} />}
     </span>
   );
 }
@@ -1336,7 +1562,7 @@ function ApplicationBadge({
     <span
       className={`rounded-full px-2.5 py-1 text-[11px] font-semibold capitalize ${config}`}
     >
-      {status}
+      {<DeepLText text={status} />}
     </span>
   );
 }
@@ -1356,7 +1582,7 @@ function Stat({
         {icon}
         <span className="text-lg font-bold">{value}</span>
       </div>
-      <p className="mt-1 text-xs text-slate-500">{label}</p>
+      <p className="mt-1 text-xs text-slate-500"><DeepLText text={label} /></p>
     </div>
   );
 }

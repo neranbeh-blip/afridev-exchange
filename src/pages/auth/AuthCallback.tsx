@@ -3,6 +3,7 @@ import { CheckCircle2, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 import { supabase } from "../../lib/supabase";
+import DeepLText from "../../components/layout/DeepLText";
 
 function AuthCallback() {
   const navigate = useNavigate();
@@ -97,18 +98,16 @@ function AuthCallback() {
           )}
 
           <h1 className="text-2xl font-black tracking-tight">
-            {error
+            <DeepLText text={error
               ? "Email verification complete"
-              : "Verifying your email"}
+              : "Verifying your email"} />
           </h1>
 
           <p className="mt-3 text-sm leading-6 text-slate-400">
-            {message}
+            <DeepLText text={message} />
           </p>
 
-          <div className="mt-8 text-xs text-slate-600">
-            AfriDev Exchange
-          </div>
+          <div className="mt-8 text-xs text-slate-600"><DeepLText text={"AfriDev Exchange"} /></div>
         </div>
       </div>
     </div>

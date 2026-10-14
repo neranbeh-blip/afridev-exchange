@@ -23,6 +23,9 @@ import { supabase } from "../../lib/supabase";
 import AddSkillModal from "../../components/passport/AddSkillModal";
 import AddEvidenceModal from "../../components/passport/AddEvidenceModal";
 
+import DeepLText from "../../components/layout/DeepLText";
+import { useDeepLTranslation } from "../../lib/useDeepLTranslation";
+
 type Profile = {
   id: string;
   full_name: string | null;
@@ -141,6 +144,23 @@ type PassportStats = {
 
 function Passport() {
   const navigate = useNavigate();
+
+  // Translate input placeholders and the native country select labels without
+  // placing wrapper elements inside <option>, which only supports text labels.
+  const { text: bioPlaceholder } = useDeepLTranslation(
+    "Tell other developers what you build and what you are interested in..."
+  );
+  const { text: cityPlaceholder } = useDeepLTranslation("e.g. Yaoundé");
+  const { text: countryPlaceholder } = useDeepLTranslation("Select your country");
+  const { text: countryOptionsText } = useDeepLTranslation(
+    AFRICAN_COUNTRIES.join("\n")
+  );
+  const translatedCountryOptions = countryOptionsText.split(/\r?\n/);
+  const countryOptionsAligned =
+    translatedCountryOptions.length === AFRICAN_COUNTRIES.length;
+  const { text: changePictureLabel } = useDeepLTranslation(
+    "Change profile picture"
+  );
   const [profile, setProfile] = useState<Profile | null>(null);
   const [skills, setSkills] = useState<DeveloperSkill[]>([]);
   const [evidence, setEvidence] = useState<SkillEvidence[]>([]);
@@ -554,7 +574,7 @@ function Passport() {
           <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-blue-600" />
 
           <p className="mt-4 text-sm text-slate-500">
-            Loading your Developer Passport...
+            <DeepLText text={"Loading your Developer Passport..."} />
           </p>
         </div>
       </div>
@@ -579,11 +599,11 @@ function Passport() {
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
           <div>
             <p className="text-sm font-semibold text-blue-600">
-              Developer Identity
+              <DeepLText text={"Developer Identity"} />
             </p>
 
             <h1 className="mt-1 text-3xl font-bold tracking-tight text-slate-950">
-              Developer Passport
+              <DeepLText text={"Developer Passport"} />
             </h1>
 
           </div>
@@ -595,7 +615,7 @@ function Passport() {
           >
             <Pencil size={17} />
 
-            {editing ? "Cancel editing" : "Edit Passport"}
+            <DeepLText text={editing ? "Cancel editing" : "Edit Passport"} />
           </button>
         </div>
       </div>
@@ -624,8 +644,8 @@ function Passport() {
               )}
 
               <label
-                title="Change profile picture"
-                aria-label="Change profile picture"
+                title={changePictureLabel}
+                aria-label={changePictureLabel}
                 className={`absolute -bottom-2 -right-2 inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border-2 border-white bg-blue-700 text-white shadow-md transition hover:bg-blue-800 ${avatarUploading ? "pointer-events-none opacity-60" : ""}`}
               >
                 <Camera size={16} aria-hidden="true" />
@@ -643,7 +663,7 @@ function Passport() {
               </label>
               {avatarUploading && (
                 <span className="absolute -bottom-8 left-0 whitespace-nowrap text-[11px] font-medium text-blue-700">
-                  Uploading photo…
+                  <DeepLText text={"Uploading photo…"} />
                 </span>
               )}
             </div>
@@ -678,7 +698,7 @@ function Passport() {
 
                 <span className="inline-flex items-center gap-1.5">
                   <UserRound size={15} className="shrink-0" />
-                  African Developer
+                  <DeepLText text={"African Developer"} />
                 </span>
               </div>
             </div>
@@ -692,7 +712,7 @@ function Passport() {
               aria-label={`View ${followerCount} followers`}
             >
               <span className="font-bold text-slate-900">{followerCount}</span>{" "}
-              <span className="text-slate-500">Followers</span>
+              <span className="text-slate-500"><DeepLText text={"Followers"} /></span>
             </button>
             <button
               type="button"
@@ -701,7 +721,7 @@ function Passport() {
               aria-label={`View ${followingCount} followed developers`}
             >
               <span className="font-bold text-slate-900">{followingCount}</span>{" "}
-              <span className="text-slate-500">Following</span>
+              <span className="text-slate-500"><DeepLText text={"Following"} /></span>
             </button>
           </div>
 
@@ -710,34 +730,34 @@ function Passport() {
             <div className="mt-8 grid gap-5 border-t border-slate-100 pt-6 md:grid-cols-2">
               <div className="md:col-span-2">
                 <label className="mb-2 block text-sm font-semibold text-slate-700">
-                  Bio
+                  <DeepLText text={"Bio"} />
                 </label>
 
                 <textarea
                   value={bio}
                   onChange={(event) => setBio(event.target.value)}
                   rows={4}
-                  placeholder="Tell other developers what you build and what you are interested in..."
+                  placeholder={bioPlaceholder}
                   className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
                 />
               </div>
 
               <div>
                 <label className="mb-2 block text-sm font-semibold text-slate-700">
-                  City
+                  <DeepLText text={"City"} />
                 </label>
 
                 <input
                   value={city}
                   onChange={(event) => setCity(event.target.value)}
-                  placeholder="e.g. Yaoundé"
+                  placeholder={cityPlaceholder}
                   className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
                 />
               </div>
 
               <div>
                 <label className="mb-2 block text-sm font-semibold text-slate-700">
-                  Country
+                  <DeepLText text={"Country"} />
                 </label>
 
                 <select
@@ -745,17 +765,19 @@ function Passport() {
                   onChange={(event) => setCountry(event.target.value)}
                   className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
                 >
-                  <option value="">Select your country</option>
+                  <option value="">{countryPlaceholder}</option>
 
-                  {AFRICAN_COUNTRIES.map((countryName) => (
+                  {AFRICAN_COUNTRIES.map((countryName, index) => (
                     <option key={countryName} value={countryName}>
-                      {countryName}
+                      {countryOptionsAligned
+                        ? translatedCountryOptions[index]
+                        : countryName}
                     </option>
                   ))}
                 </select>
 
                 <p className="mt-2 text-xs text-slate-500">
-                  Select the African country you identify with professionally.
+                  <DeepLText text={"Select the African country you identify with professionally."} />
                 </p>
               </div>
 
@@ -765,15 +787,14 @@ function Passport() {
                   onClick={saveProfile}
                   className="rounded-xl bg-blue-700 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-800"
                 >
-                  Save changes
+                  <DeepLText text={"Save changes"} />
                 </button>
               </div>
             </div>
           ) : (
             <div className="mt-6 border-t border-slate-100 pt-6">
               <p className="text-sm leading-7 text-slate-600">
-                {profile?.bio ||
-                  "Add a short introduction about yourself, your technical interests, and the kind of collaboration you are looking for."}
+                {profile?.bio || <DeepLText text={"Add a short introduction about yourself, your technical interests, and the kind of collaboration you are looking for."} />}
               </p>
             </div>
           )}
@@ -782,17 +803,17 @@ function Passport() {
             <div className="mt-5 flex flex-wrap gap-2 border-t border-slate-100 pt-5">
               {profile.github_url && (
                 <a href={profile.github_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700">
-                  GitHub <ExternalLink size={14} />
+                  <DeepLText text={"GitHub"} /> <ExternalLink size={14} />
                 </a>
               )}
               {profile.website_url && (
                 <a href={profile.website_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700">
-                  Website <ExternalLink size={14} />
+                  <DeepLText text={"Website"} /> <ExternalLink size={14} />
                 </a>
               )}
               {profile.linkedin_url && (
                 <a href={profile.linkedin_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700">
-                  LinkedIn <ExternalLink size={14} />
+                  <DeepLText text={"LinkedIn"} /> <ExternalLink size={14} />
                 </a>
               )}
             </div>
@@ -831,7 +852,7 @@ function Passport() {
         <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
           <div>
             <h2 className="text-xl font-bold text-slate-950">
-              Skills & Capabilities
+              <DeepLText text={"Skills & Capabilities"} />
             </h2>
 
           </div>
@@ -842,7 +863,7 @@ function Passport() {
             className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-800"
           >
             <Plus size={17} />
-            Add Skill
+            <DeepLText text={"Add Skill"} />
           </button>
         </div>
 
@@ -853,12 +874,11 @@ function Passport() {
             </div>
 
             <h3 className="mt-4 font-semibold text-slate-900">
-              No skills added yet
+              <DeepLText text={"No skills added yet"} />
             </h3>
 
             <p className="mx-auto mt-1 max-w-md text-sm text-slate-500">
-              Add your first skills so AfriDev can understand
-              your capabilities and find complementary developers.
+              <DeepLText text={"Add your first skills so AfriDev can understand your capabilities and find complementary developers."} />
             </p>
           </div>
         ) : (
@@ -891,11 +911,11 @@ function Passport() {
                 <div className="mt-4">
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-slate-500">
-                      Proficiency
+                      <DeepLText text={"Proficiency"} />
                     </span>
 
                     <span className="font-semibold capitalize text-blue-700">
-                      {developerSkill.proficiency}
+                      <DeepLText text={developerSkill.proficiency} />
                     </span>
                   </div>
 
@@ -924,7 +944,7 @@ function Passport() {
         <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
           <div>
             <h2 className="text-xl font-bold text-slate-950">
-              Skill Evidence
+              <DeepLText text={"Skill Evidence"} />
             </h2>
 
           </div>
@@ -935,7 +955,7 @@ function Passport() {
             className="inline-flex items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-700 transition hover:bg-blue-100"
           >
             <Plus size={17} />
-            Add Evidence
+            <DeepLText text={"Add Evidence"} />
           </button>
         </div>
 
@@ -946,13 +966,11 @@ function Passport() {
             </div>
 
             <h3 className="mt-4 font-semibold text-slate-900">
-              No evidence added yet
+              <DeepLText text={"No evidence added yet"} />
             </h3>
 
             <p className="mx-auto mt-1 max-w-md text-sm text-slate-500">
-              Add GitHub repositories, portfolio projects,
-              certificates, or other evidence that supports your
-              skills.
+              <DeepLText text={"Add GitHub repositories, portfolio projects, certificates, or other evidence that supports your skills."} />
             </p>
 
             <button
@@ -960,7 +978,7 @@ function Passport() {
               onClick={() => setShowAddEvidenceModal(true)}
               className="mt-4 font-semibold text-blue-700 hover:text-blue-800"
             >
-              Add your first evidence
+              <DeepLText text={"Add your first evidence"} />
             </button>
           </div>
         ) : (
@@ -987,19 +1005,19 @@ function Passport() {
                         {item.verified ? (
                           <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700">
                             <CheckCircle2 size={13} />
-                            Verified
+                            <DeepLText text={"Verified"} />
                           </span>
                         ) : (
                           <span className="rounded-full bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-700">
-                            Pending verification
+                            <DeepLText text={"Pending verification"} />
                           </span>
                         )}
                       </div>
 
                       <p className="mt-1 text-xs font-medium uppercase tracking-wide text-blue-600">
-                        {formatEvidenceType(
+                        <DeepLText text={formatEvidenceType(
                           item.evidence_type
-                        )}
+                        )} />
                         {item.skill?.name
                           ? ` · ${item.skill.name}`
                           : ""}
@@ -1021,7 +1039,7 @@ function Passport() {
                       className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-blue-50 hover:text-blue-700"
                     >
                       <ExternalLink size={16} />
-                      View evidence
+                      <DeepLText text={"View evidence"} />
                     </a>
                   )}
                 </div>
@@ -1039,14 +1057,14 @@ function Passport() {
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h2 className="text-xl font-bold text-slate-950">
-              AfriDev Experience
+              <DeepLText text={"AfriDev Experience"} />
             </h2>
 
           </div>
 
           <div className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700">
             <ShieldCheck size={15} />
-            Based on platform activity
+            <DeepLText text={"Based on platform activity"} />
           </div>
         </div>
 
@@ -1086,15 +1104,15 @@ function Passport() {
       <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="mb-4">
           <p className="text-sm font-semibold uppercase tracking-wider text-blue-600">
-            Build history
+            <DeepLText text={"Build history"} />
           </p>
-          <h2 className="mt-1 text-xl font-bold text-slate-950">Projects</h2>
+          <h2 className="mt-1 text-xl font-bold text-slate-950"><DeepLText text={"Projects"} /></h2>
         </div>
 
         {projects.length === 0 ? (
           <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
             <BriefcaseBusiness size={32} className="mx-auto mb-3 text-slate-600" />
-            <p className="text-sm text-slate-500">No public projects yet.</p>
+            <p className="text-sm text-slate-500"><DeepLText text={"No public projects yet."} /></p>
           </div>
         ) : (
           <div className="grid gap-4 md:grid-cols-2">
@@ -1105,7 +1123,7 @@ function Passport() {
                     <h3 className="break-words font-semibold text-slate-950">{project.title}</h3>
                     {project.status && (
                       <span className="mt-2 inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs capitalize text-slate-500">
-                        {project.status.replace("_", " ")}
+                        <DeepLText text={project.status.replace("_", " ")} />
                       </span>
                     )}
                   </div>
@@ -1119,12 +1137,12 @@ function Passport() {
                 <div className="mt-4 flex flex-wrap gap-2">
                   {project.repository_url && (
                     <a href={project.repository_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100">
-                      <ExternalLink size={13} /> Repository
+                      <ExternalLink size={13} /> <DeepLText text={"Repository"} />
                     </a>
                   )}
                   {project.demo_url && (
                     <a href={project.demo_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100">
-                      <Globe2 size={13} /> Live Demo
+                      <Globe2 size={13} /> <DeepLText text={"Live Demo"} />
                     </a>
                   )}
                 </div>
@@ -1157,10 +1175,10 @@ function Passport() {
             <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
               <div>
                 <h2 id="passport-network-title" className="text-xl font-bold text-slate-950">
-                  {networkOpen === "followers" ? "Followers" : "Following"}
+                  <DeepLText text={networkOpen === "followers" ? "Followers" : "Following"} />
                 </h2>
                 <p className="mt-1 text-xs text-slate-500">
-                  {networkProfiles.length} developer{networkProfiles.length === 1 ? "" : "s"}
+                  {networkProfiles.length} <DeepLText text={"developer"} />{networkProfiles.length === 1 ? "" : "s"}
                 </p>
               </div>
               <button
@@ -1177,12 +1195,12 @@ function Passport() {
               {networkLoading ? (
                 <div className="py-12 text-center">
                   <div className="mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-2 border-blue-400 border-t-transparent" />
-                  <p className="text-sm text-slate-500">Loading developers...</p>
+                  <p className="text-sm text-slate-500"><DeepLText text={"Loading developers..."} /></p>
                 </div>
               ) : networkProfiles.length === 0 ? (
                 <div className="py-12 text-center">
                   <Users className="mx-auto mb-3 text-slate-400" size={36} />
-                  <p className="text-sm text-slate-500">No developers here yet.</p>
+                  <p className="text-sm text-slate-500"><DeepLText text={"No developers here yet."} /></p>
                 </div>
               ) : (
                 <div className="space-y-2">
@@ -1309,14 +1327,14 @@ function SignalCard({
         </div>
 
         <span className="text-sm font-semibold text-slate-600">
-          {label}
+          <DeepLText text={label} />
         </span>
       </div>
 
       <p className="mt-5 text-3xl font-bold text-slate-950">{value}</p>
 
       <p className="mt-1 text-sm leading-5 text-slate-500">
-        {description}
+        <DeepLText text={description} />
       </p>
     </div>
   );
@@ -1341,7 +1359,7 @@ function ExperienceCard({
         </div>
 
         <span className="text-sm font-medium text-slate-500">
-          {label}
+          <DeepLText text={label} />
         </span>
       </div>
 
@@ -1350,7 +1368,7 @@ function ExperienceCard({
       </p>
 
       <p className="mt-1 text-sm text-slate-500">
-        {description}
+        <DeepLText text={description} />
       </p>
     </div>
   );

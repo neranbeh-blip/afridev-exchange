@@ -20,6 +20,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
 import { supabase } from "../../lib/supabase";
+import DeepLText from "../../components/layout/DeepLText";
 
 type ProjectStatus = "idea" | "open" | "in_progress" | "completed";
 type TaskStatus = "todo" | "in_progress" | "in_review" | "done";
@@ -466,6 +467,26 @@ function ProjectWorkspace() {
     done: tasks.filter((task) => task.status === "done").length,
   }), [tasks]);
 
+  // Project progress reflects every task status, not only tasks marked Done.
+  // These weights can be adjusted to match how the team defines progress.
+  const taskProgressPercent = useMemo(() => {
+    if (tasks.length === 0) return 0;
+
+    const progressByStatus: Record<TaskStatus, number> = {
+      todo: 0,
+      in_progress: 50,
+      in_review: 90,
+      done: 100,
+    };
+
+    const totalProgress = tasks.reduce(
+      (sum, task) => sum + progressByStatus[task.status],
+      0
+    );
+
+    return Math.round(totalProgress / tasks.length);
+  }, [tasks]);
+
   if (loading) {
     return (
       <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
@@ -477,9 +498,9 @@ function ProjectWorkspace() {
   if (!project || error && !project) {
     return (
       <div className="mx-auto max-w-5xl px-4 py-12 sm:px-6">
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-sm text-red-700">{error ?? "Project not found."}</div>
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-sm text-red-700">{error ? <DeepLText text={error} /> : <DeepLText text="Project not found." />}</div>
         <Link to="/projects" className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-blue-700">
-          <ChevronLeft size={16} /> Back to Projects
+          <ChevronLeft size={16} /> <DeepLText text="Back to Projects" />
         </Link>
       </div>
     );
@@ -489,12 +510,12 @@ function ProjectWorkspace() {
     return (
       <div className="mx-auto max-w-5xl px-4 py-12 sm:px-6">
         <Link to={`/projects/${project.id}`} className="inline-flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-blue-700">
-          <ChevronLeft size={16} /> Back to Project
+          <ChevronLeft size={16} /> <DeepLText text="Back to Project" />
         </Link>
         <div className="mt-5 rounded-3xl border border-slate-200 bg-white p-10 text-center shadow-sm">
           <FolderOpen className="mx-auto text-slate-300" size={44} />
-          <h1 className="mt-4 text-2xl font-bold text-slate-950">Workspace access required</h1>
-          <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-slate-500">Only the project owner and accepted collaborators can access this workspace.</p>
+          <h1 className="mt-4 text-2xl font-bold text-slate-950"><DeepLText text="Workspace access required" /></h1>
+          <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-slate-500"><DeepLText text="Only the project owner and accepted collaborators can access this workspace." /></p>
         </div>
       </div>
     );
@@ -506,12 +527,12 @@ function ProjectWorkspace() {
     <div className="min-h-full bg-slate-50/60">
       <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
         <Link to={`/projects/${project.id}`} className="inline-flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-blue-700">
-          <ChevronLeft size={16} /> Back to Project
+          <ChevronLeft size={16} /> <DeepLText text="Back to Project" />
         </Link>
 
         {error && (
           <div className="mt-4 flex items-start justify-between gap-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            <span>{error}</span>
+            <span><DeepLText text={error} /></span>
             <button type="button" onClick={() => setError(null)} aria-label="Dismiss error"><X size={16} /></button>
           </div>
         )}
@@ -524,14 +545,14 @@ function ProjectWorkspace() {
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
                     <h1 className="text-2xl font-bold text-slate-950 sm:text-3xl">{project.title}</h1>
-                    <span className="rounded-full bg-blue-100 px-2.5 py-1 text-[11px] font-semibold capitalize text-blue-700">{statusLabel}</span>
+                    <span className="rounded-full bg-blue-100 px-2.5 py-1 text-[11px] font-semibold capitalize text-blue-700"><DeepLText text={statusLabel} /></span>
                   </div>
                   <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">{project.description}</p>
                 </div>
               </div>
               <div className="flex flex-wrap gap-2">
-                {project.repository_url && <a href={project.repository_url} target="_blank" rel="noreferrer" className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">Repository</a>}
-                {project.demo_url && <a href={project.demo_url} target="_blank" rel="noreferrer" className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">Demo</a>}
+                {project.repository_url && <a href={project.repository_url} target="_blank" rel="noreferrer" className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"><DeepLText text="Repository" /></a>}
+                {project.demo_url && <a href={project.demo_url} target="_blank" rel="noreferrer" className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"><DeepLText text="Demo" /></a>}
               </div>
             </div>
           </div>
@@ -546,7 +567,7 @@ function ProjectWorkspace() {
               ["activity", "Activity", Activity],
             ] as const).map(([key, label, Icon]) => (
               <button key={key} type="button" onClick={() => setActiveTab(key)} className={`inline-flex shrink-0 items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold ${activeTab === key ? "bg-blue-700 text-white" : "text-slate-600 hover:bg-slate-100"}`}>
-                <Icon size={16} /> {label}
+                <Icon size={16} /> <DeepLText text={label} />
                 {key === "tasks" && taskStats.total > 0 && <span className={`rounded-full px-1.5 py-0.5 text-[10px] ${activeTab === key ? "bg-white/20" : "bg-slate-200"}`}>{taskStats.total}</span>}
               </button>
             ))}
@@ -566,37 +587,37 @@ function ProjectWorkspace() {
               <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <h2 className="text-lg font-bold text-slate-950">Project progress</h2>
-                    <p className="mt-1 text-sm text-slate-500">Track delivery through tasks and team activity.</p>
+                    <h2 className="text-lg font-bold text-slate-950"><DeepLText text="Project progress" /></h2>
+                    <p className="mt-1 text-sm text-slate-500"><DeepLText text="Track delivery through tasks and team activity." /></p>
                   </div>
-                  <span className="text-sm font-bold text-blue-700">{taskStats.total ? Math.round((taskStats.done / taskStats.total) * 100) : 0}%</span>
+                  <span className="text-sm font-bold text-blue-700">{taskProgressPercent}%</span>
                 </div>
-                <div className="mt-5 h-3 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-blue-700 transition-all" style={{ width: `${taskStats.total ? (taskStats.done / taskStats.total) * 100 : 0}%` }} /></div>
+                <div className="mt-5 h-3 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-blue-700 transition-all" style={{ width: `${taskProgressPercent}%` }} /></div>
                 <div className="mt-4 grid gap-3 sm:grid-cols-4">
-                  {taskColumns.map((column) => <div key={column.status} className="rounded-xl bg-slate-50 p-3"><p className="text-xs font-semibold text-slate-500">{column.label}</p><p className="mt-1 text-xl font-bold text-slate-950">{tasks.filter((task) => task.status === column.status).length}</p></div>)}
+                  {taskColumns.map((column) => <div key={column.status} className="rounded-xl bg-slate-50 p-3"><p className="text-xs font-semibold text-slate-500"><DeepLText text={column.label} /></p><p className="mt-1 text-xl font-bold text-slate-950">{tasks.filter((task) => task.status === column.status).length}</p></div>)}
                 </div>
               </section>
 
               <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                <div className="flex items-center justify-between"><h2 className="text-lg font-bold text-slate-950">Recent activity</h2><button type="button" onClick={() => setActiveTab("activity")} className="text-xs font-semibold text-blue-700">View all</button></div>
+                <div className="flex items-center justify-between"><h2 className="text-lg font-bold text-slate-950"><DeepLText text="Recent activity" /></h2><button type="button" onClick={() => setActiveTab("activity")} className="text-xs font-semibold text-blue-700"><DeepLText text="View all" /></button></div>
                 <ActivityList activities={activities.slice(0, 6)} />
               </section>
             </div>
 
             <aside className="space-y-6">
               <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <h2 className="font-bold text-slate-950">Quick actions</h2>
+                <h2 className="font-bold text-slate-950"><DeepLText text="Quick actions" /></h2>
                 <div className="mt-4 space-y-2">
-                  <button type="button" onClick={() => { setActiveTab("tasks"); setShowTaskForm(true); }} disabled={!isOwner} className="flex w-full items-center gap-2 rounded-xl bg-blue-700 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-40"><Plus size={16} /> Create task</button>
+                  <button type="button" onClick={() => { setActiveTab("tasks"); setShowTaskForm(true); }} disabled={!isOwner} className="flex w-full items-center gap-2 rounded-xl bg-blue-700 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-40"><Plus size={16} /> <DeepLText text="Create task" /></button>
                   <label className="flex w-full cursor-pointer items-center gap-2 rounded-xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"><Upload size={16} /> {uploading ? "Uploading..." : "Upload file"}<input type="file" className="hidden" onChange={uploadFile} disabled={uploading} /></label>
-                  <button type="button" onClick={() => setActiveTab("discussions")} className="flex w-full items-center gap-2 rounded-xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"><MessageSquare size={16} /> Start discussion</button>
+                  <button type="button" onClick={() => setActiveTab("discussions")} className="flex w-full items-center gap-2 rounded-xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"><MessageSquare size={16} /> <DeepLText text="Start discussion" /></button>
                 </div>
               </section>
 
               <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <h2 className="font-bold text-slate-950">Team</h2>
+                <h2 className="font-bold text-slate-950"><DeepLText text="Team" /></h2>
                 <div className="mt-4 space-y-3">{members.slice(0, 5).map((member) => <MemberRow key={member.developer_id} member={member} />)}</div>
-                {members.length > 5 && <button type="button" onClick={() => setActiveTab("team")} className="mt-4 text-xs font-semibold text-blue-700">View all members</button>}
+                {members.length > 5 && <button type="button" onClick={() => setActiveTab("team")} className="mt-4 text-xs font-semibold text-blue-700"><DeepLText text="View all members" /></button>}
               </section>
             </aside>
           </div>
@@ -605,8 +626,8 @@ function ProjectWorkspace() {
         {activeTab === "tasks" && (
           <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div><h2 className="text-xl font-bold text-slate-950">Project Tasks</h2><p className="mt-1 text-sm text-slate-500">Break the project into clear, trackable work.</p></div>
-              {isOwner && <button type="button" onClick={() => setShowTaskForm((value) => !value)} className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-800"><Plus size={16} /> New task</button>}
+              <div><h2 className="text-xl font-bold text-slate-950"><DeepLText text="Project Tasks" /></h2><p className="mt-1 text-sm text-slate-500"><DeepLText text="Break the project into clear, trackable work." /></p></div>
+              {isOwner && <button type="button" onClick={() => setShowTaskForm((value) => !value)} className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-800"><Plus size={16} /> <DeepLText text="New task" /></button>}
             </div>
 
             {showTaskForm && isOwner && (
@@ -614,20 +635,20 @@ function ProjectWorkspace() {
                 <div className="grid gap-4 md:grid-cols-2">
                   <input value={taskTitle} onChange={(e) => setTaskTitle(e.target.value)} placeholder="Task title" className="rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm outline-none focus:border-blue-400" />
                   <select value={taskAssignee} onChange={(e) => setTaskAssignee(e.target.value)} className="rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm outline-none">
-                    <option value="">Unassigned</option>{members.map((member) => <option key={member.developer_id} value={member.developer_id}>{member.profile?.full_name || member.profile?.username || "Developer"}{member.role === "owner" ? " (Owner)" : ""}</option>)}
+                    <option value=""><DeepLText text="Unassigned" /></option>{members.map((member) => <option key={member.developer_id} value={member.developer_id}>{member.profile?.full_name || member.profile?.username || "Developer"}{member.role === "owner" ? " (Owner)" : ""}</option>)}
                   </select>
                   <textarea value={taskDescription} onChange={(e) => setTaskDescription(e.target.value)} rows={3} placeholder="Description (optional)" className="rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm outline-none md:col-span-2" />
-                  <select value={taskPriority} onChange={(e) => setTaskPriority(e.target.value as TaskPriority)} className="rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm"><option value="low">Low priority</option><option value="medium">Medium priority</option><option value="high">High priority</option></select>
+                  <select value={taskPriority} onChange={(e) => setTaskPriority(e.target.value as TaskPriority)} className="rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm"><option value="low"><DeepLText text="Low priority" /></option><option value="medium"><DeepLText text="Medium priority" /></option><option value="high"><DeepLText text="High priority" /></option></select>
                   <input type="date" value={taskDueDate} onChange={(e) => setTaskDueDate(e.target.value)} className="rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm" />
                 </div>
-                <div className="mt-4 flex justify-end gap-2"><button type="button" onClick={() => setShowTaskForm(false)} className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-600">Cancel</button><button type="submit" disabled={savingTask} className="inline-flex items-center gap-2 rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60">{savingTask && <Loader2 size={15} className="animate-spin" />}Create Task</button></div>
+                <div className="mt-4 flex justify-end gap-2"><button type="button" onClick={() => setShowTaskForm(false)} className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-600"><DeepLText text="Cancel" /></button><button type="submit" disabled={savingTask} className="inline-flex items-center gap-2 rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60">{savingTask && <Loader2 size={15} className="animate-spin" />}Create Task</button></div>
               </form>
             )}
 
             <div className="mt-6 grid gap-4 xl:grid-cols-4">
               {taskColumns.map((column) => (
                 <div key={column.status} className="min-h-64 rounded-2xl bg-slate-50 p-3">
-                  <div className="flex items-center justify-between"><h3 className="text-sm font-bold text-slate-800">{column.label}</h3><span className="rounded-full bg-white px-2 py-1 text-[10px] font-bold text-slate-500">{tasks.filter((task) => task.status === column.status).length}</span></div>
+                  <div className="flex items-center justify-between"><h3 className="text-sm font-bold text-slate-800"><DeepLText text={column.label} /></h3><span className="rounded-full bg-white px-2 py-1 text-[10px] font-bold text-slate-500">{tasks.filter((task) => task.status === column.status).length}</span></div>
                   <div className="mt-3 space-y-3">
                     {tasks.filter((task) => task.status === column.status).map((task) => (
                       <TaskCard key={task.id} task={task} members={members} currentUserId={currentUserId} isOwner={isOwner} onStatus={(status) => void updateTaskStatus(task, status)} onDelete={() => void deleteTask(task)} />
@@ -641,28 +662,28 @@ function ProjectWorkspace() {
 
         {activeTab === "files" && (
           <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="text-xl font-bold text-slate-950">Project Files</h2><p className="mt-1 text-sm text-slate-500">Shared files are stored privately for this project.</p></div><label className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-800">{uploading ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />} {uploading ? "Uploading..." : "Upload file"}<input type="file" className="hidden" onChange={uploadFile} disabled={uploading} /></label></div>
-            {files.length === 0 ? <EmptyState icon={<FileText size={32} />} title="No files yet" text="Upload specifications, designs, documents or other project assets." /> : <div className="mt-6 divide-y divide-slate-100 rounded-xl border border-slate-100">{files.map((file) => <div key={file.id} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"><div className="flex min-w-0 items-center gap-3"><div className="rounded-xl bg-blue-50 p-2 text-blue-700"><File size={18} /></div><div className="min-w-0"><p className="truncate text-sm font-semibold text-slate-900">{file.file_name}</p><p className="text-xs text-slate-500">{formatBytes(file.file_size)} · {formatDate(file.created_at)} · {file.uploader?.full_name || "Developer"}</p></div></div><div className="flex gap-2"><button type="button" onClick={() => void downloadFile(file)} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50">Download</button>{(isOwner || file.uploaded_by === currentUserId) && <button type="button" onClick={() => void deleteFile(file)} className="rounded-lg border border-red-100 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50"><Trash2 size={14} /></button>}</div></div>)}</div>}
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="text-xl font-bold text-slate-950"><DeepLText text="Project Files" /></h2><p className="mt-1 text-sm text-slate-500"><DeepLText text="Shared files are stored privately for this project." /></p></div><label className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-800">{uploading ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />} {uploading ? "Uploading..." : "Upload file"}<input type="file" className="hidden" onChange={uploadFile} disabled={uploading} /></label></div>
+            {files.length === 0 ? <EmptyState icon={<FileText size={32} />} title="No files yet" text="Upload specifications, designs, documents or other project assets." /> : <div className="mt-6 divide-y divide-slate-100 rounded-xl border border-slate-100">{files.map((file) => <div key={file.id} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"><div className="flex min-w-0 items-center gap-3"><div className="rounded-xl bg-blue-50 p-2 text-blue-700"><File size={18} /></div><div className="min-w-0"><p className="truncate text-sm font-semibold text-slate-900">{file.file_name}</p><p className="text-xs text-slate-500">{formatBytes(file.file_size)} · {formatDate(file.created_at)} · {file.uploader?.full_name || "Developer"}</p></div></div><div className="flex gap-2"><button type="button" onClick={() => void downloadFile(file)} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50"><DeepLText text="Download" /></button>{(isOwner || file.uploaded_by === currentUserId) && <button type="button" onClick={() => void deleteFile(file)} className="rounded-lg border border-red-100 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50"><Trash2 size={14} /></button>}</div></div>)}</div>}
           </section>
         )}
 
         {activeTab === "team" && (
           <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="flex items-center justify-between"><div><h2 className="text-xl font-bold text-slate-950">Project Team</h2><p className="mt-1 text-sm text-slate-500">Everyone currently participating in this project.</p></div><Users className="text-blue-600" size={24} /></div>
-            <div className="mt-6 grid gap-4 md:grid-cols-2">{members.map((member) => <div key={member.developer_id} className="flex items-center gap-4 rounded-2xl border border-slate-100 p-4"><Avatar profile={member.profile} /><div className="min-w-0 flex-1"><Link to={`/developer/${member.developer_id}`} className="truncate font-semibold text-slate-900 hover:text-blue-700">{member.profile?.full_name || member.profile?.username || "Developer"}</Link><p className="mt-1 text-xs text-slate-500">{member.role === "owner" ? "Project Owner" : "Collaborator"}</p>{member.profile?.city && <p className="mt-1 text-xs text-slate-400">{member.profile.city}{member.profile.country ? `, ${member.profile.country}` : ""}</p>}</div><Link to={`/developer/${member.developer_id}`} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600">Passport</Link></div>)}</div>
+            <div className="flex items-center justify-between"><div><h2 className="text-xl font-bold text-slate-950"><DeepLText text="Project Team" /></h2><p className="mt-1 text-sm text-slate-500"><DeepLText text="Everyone currently participating in this project." /></p></div><Users className="text-blue-600" size={24} /></div>
+            <div className="mt-6 grid gap-4 md:grid-cols-2">{members.map((member) => <div key={member.developer_id} className="flex items-center gap-4 rounded-2xl border border-slate-100 p-4"><Avatar profile={member.profile} /><div className="min-w-0 flex-1"><Link to={`/developer/${member.developer_id}`} className="truncate font-semibold text-slate-900 hover:text-blue-700">{member.profile?.full_name || member.profile?.username || "Developer"}</Link><p className="mt-1 text-xs text-slate-500">{member.role === "owner" ? "Project Owner" : "Collaborator"}</p>{member.profile?.city && <p className="mt-1 text-xs text-slate-400">{member.profile.city}{member.profile.country ? `, ${member.profile.country}` : ""}</p>}</div><Link to={`/developer/${member.developer_id}`} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600"><DeepLText text="Passport" /></Link></div>)}</div>
           </section>
         )}
 
         {activeTab === "discussions" && (
           <section className="mt-6 rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <div className="border-b border-slate-100 p-6"><h2 className="text-xl font-bold text-slate-950">Discussions</h2><p className="mt-1 text-sm text-slate-500">Coordinate work with the project team.</p></div>
+            <div className="border-b border-slate-100 p-6"><h2 className="text-xl font-bold text-slate-950"><DeepLText text="Discussions" /></h2><p className="mt-1 text-sm text-slate-500"><DeepLText text="Coordinate work with the project team." /></p></div>
             <div className="max-h-[520px] space-y-4 overflow-y-auto p-6">{comments.length === 0 ? <EmptyState icon={<MessageSquare size={32} />} title="No discussion yet" text="Start the conversation with your team." /> : comments.map((comment) => <div key={comment.id} className="flex gap-3"><Avatar profile={comment.developer} small /><div className="min-w-0 flex-1 rounded-2xl bg-slate-50 p-4"><div className="flex flex-wrap items-center justify-between gap-2"><p className="text-sm font-semibold text-slate-900">{comment.developer?.full_name || "Developer"}</p><span className="text-[11px] text-slate-400">{formatDate(comment.created_at)}</span></div><p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-600">{comment.content}</p></div></div>)}</div>
             <form onSubmit={postComment} className="border-t border-slate-100 p-5"><div className="flex gap-3"><Avatar profile={members.find((member) => member.developer_id === currentUserId)?.profile} small /><textarea value={commentText} onChange={(e) => setCommentText(e.target.value)} rows={2} placeholder="Write a message to your project team..." className="min-w-0 flex-1 resize-none rounded-xl border border-slate-200 px-3 py-3 text-sm outline-none focus:border-blue-400" /><button type="submit" disabled={!commentText.trim()} className="self-end rounded-xl bg-blue-700 p-3 text-white hover:bg-blue-800 disabled:opacity-40" aria-label="Post comment"><Send size={17} /></button></div></form>
           </section>
         )}
 
         {activeTab === "activity" && (
-          <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"><h2 className="text-xl font-bold text-slate-950">Project Activity</h2><p className="mt-1 text-sm text-slate-500">A timeline of workspace actions.</p><ActivityList activities={activities} /></section>
+          <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"><h2 className="text-xl font-bold text-slate-950"><DeepLText text="Project Activity" /></h2><p className="mt-1 text-sm text-slate-500"><DeepLText text="A timeline of workspace actions." /></p><ActivityList activities={activities} /></section>
         )}
       </div>
     </div>
@@ -673,11 +694,11 @@ function TaskCard({ task, members, currentUserId, isOwner, onStatus, onDelete }:
   const assignee = members.find((member) => member.developer_id === task.assigned_to)?.profile;
   const isAssignedUser = task.assigned_to === currentUserId;
   const canMove = isOwner || isAssignedUser;
-  return <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"><div className="flex items-start justify-between gap-2"><div className="min-w-0"><p className="font-semibold text-slate-900">{task.title}</p>{task.description && <p className="mt-1 line-clamp-3 text-xs leading-5 text-slate-500">{task.description}</p>}</div>{isOwner && <button type="button" onClick={onDelete} className="text-slate-300 hover:text-red-600" aria-label="Delete task"><Trash2 size={14} /></button>}</div><div className="mt-3 flex flex-wrap gap-1.5"><span className={`rounded-full px-2 py-1 text-[10px] font-semibold ${task.priority === "high" ? "bg-red-50 text-red-700" : task.priority === "low" ? "bg-slate-100 text-slate-600" : "bg-amber-50 text-amber-700"}`}>{task.priority} priority</span>{task.due_date && <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-600"><Calendar size={10} /> {task.due_date}</span>}</div><div className="mt-3 flex items-center gap-2">{assignee ? <><Avatar profile={assignee} small /><span className="truncate text-[11px] text-slate-500">{assignee.full_name || assignee.username || "Developer"}</span></> : <span className="text-[11px] text-slate-400">Unassigned</span>}</div>{canMove && <select value={task.status} onChange={(e) => onStatus(e.target.value as TaskStatus)} className="mt-3 w-full rounded-lg border border-slate-200 bg-white px-2 py-2 text-xs font-semibold text-slate-600"><option value="todo">To Do</option><option value="in_progress">In Progress</option><option value="in_review">In Review</option><option value="done">Done</option></select>}</div>;
+  return <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"><div className="flex items-start justify-between gap-2"><div className="min-w-0"><p className="font-semibold text-slate-900">{task.title}</p>{task.description && <p className="mt-1 line-clamp-3 text-xs leading-5 text-slate-500">{task.description}</p>}</div>{isOwner && <button type="button" onClick={onDelete} className="text-slate-300 hover:text-red-600" aria-label="Delete task"><Trash2 size={14} /></button>}</div><div className="mt-3 flex flex-wrap gap-1.5"><span className={`rounded-full px-2 py-1 text-[10px] font-semibold ${task.priority === "high" ? "bg-red-50 text-red-700" : task.priority === "low" ? "bg-slate-100 text-slate-600" : "bg-amber-50 text-amber-700"}`}>{task.priority} priority</span>{task.due_date && <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-600"><Calendar size={10} /> {task.due_date}</span>}</div><div className="mt-3 flex items-center gap-2">{assignee ? <><Avatar profile={assignee} small /><span className="truncate text-[11px] text-slate-500">{assignee.full_name || assignee.username || "Developer"}</span></> : <span className="text-[11px] text-slate-400"><DeepLText text="Unassigned" /></span>}</div>{canMove && <select value={task.status} onChange={(e) => onStatus(e.target.value as TaskStatus)} className="mt-3 w-full rounded-lg border border-slate-200 bg-white px-2 py-2 text-xs font-semibold text-slate-600"><option value="todo"><DeepLText text="To Do" /></option><option value="in_progress"><DeepLText text="In Progress" /></option><option value="in_review"><DeepLText text="In Review" /></option><option value="done"><DeepLText text="Done" /></option></select>}</div>;
 }
 
 function ActivityList({ activities }: { activities: ActivityItem[] }) {
-  if (!activities.length) return <div className="mt-5 rounded-xl border border-dashed border-slate-200 p-8 text-center"><Clock3 className="mx-auto text-slate-300" size={30} /><p className="mt-3 text-sm font-semibold text-slate-600">No activity yet</p></div>;
+  if (!activities.length) return <div className="mt-5 rounded-xl border border-dashed border-slate-200 p-8 text-center"><Clock3 className="mx-auto text-slate-300" size={30} /><p className="mt-3 text-sm font-semibold text-slate-600"><DeepLText text="No activity yet" /></p></div>;
   return <div className="mt-5 divide-y divide-slate-100">{activities.map((activity) => <div key={activity.id} className="flex gap-3 py-4"><div className="mt-0.5 rounded-xl bg-blue-50 p-2 text-blue-700"><Activity size={16} /></div><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center justify-between gap-2"><p className="text-sm font-semibold text-slate-900">{activity.title}</p><span className="text-[11px] text-slate-400">{formatDate(activity.created_at)}</span></div>{activity.description && <p className="mt-1 text-xs leading-5 text-slate-500">{activity.description}</p>}{activity.developer?.full_name && <p className="mt-1 text-[11px] text-slate-400">by {activity.developer.full_name}</p>}</div></div>)}</div>;
 }
 
@@ -692,7 +713,7 @@ function Avatar({ profile, small = false }: { profile?: Profile | null; small?: 
 }
 
 function Kpi({ label, value }: { label: string; value: number }) {
-  return <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><p className="text-xs font-semibold text-slate-400">{label}</p><p className="mt-1 text-2xl font-bold text-slate-950">{value}</p></div>;
+  return <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><p className="text-xs font-semibold text-slate-400"><DeepLText text={label} /></p><p className="mt-1 text-2xl font-bold text-slate-950">{value}</p></div>;
 }
 
 function EmptyState({ icon, title, text }: { icon: React.ReactNode; title: string; text: string }) {

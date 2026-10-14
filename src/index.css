@@ -48,3 +48,138 @@ button {
   background: rgba(37, 99, 235, 0.18);
   color: #0f172a;
 }
+
+
+/* AFRIDEV DASHBOARD MOTION V1 */
+/* Original lightweight CSS motion; no animation library is added. */
+.afridev-dashboard-motion .afridev-dashboard-hero {
+  animation: afridev-dashboard-enter 560ms cubic-bezier(.2,.7,.2,1) both;
+}
+
+.afridev-dashboard-motion .afridev-dashboard-hero img {
+  transform: scale(1.025);
+  animation: afridev-hero-image-settle 1100ms cubic-bezier(.2,.7,.2,1) both;
+}
+
+.afridev-dashboard-motion .afridev-dashboard-kpis .afridev-dashboard-kpi {
+  animation: afridev-dashboard-enter 480ms cubic-bezier(.2,.7,.2,1) both;
+  transition:
+    transform 200ms ease,
+    box-shadow 200ms ease,
+    border-color 200ms ease;
+}
+
+.afridev-dashboard-motion .afridev-dashboard-kpis .afridev-dashboard-kpi:nth-child(1) { animation-delay: 70ms; }
+.afridev-dashboard-motion .afridev-dashboard-kpis .afridev-dashboard-kpi:nth-child(2) { animation-delay: 130ms; }
+.afridev-dashboard-motion .afridev-dashboard-kpis .afridev-dashboard-kpi:nth-child(3) { animation-delay: 190ms; }
+.afridev-dashboard-motion .afridev-dashboard-kpis .afridev-dashboard-kpi:nth-child(4) { animation-delay: 250ms; }
+
+.afridev-dashboard-motion .afridev-dashboard-kpis .afridev-dashboard-kpi:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 16px 35px rgba(15, 23, 42, .09);
+}
+
+.afridev-dashboard-motion .afridev-dashboard-lower > section {
+  animation: afridev-dashboard-enter 520ms cubic-bezier(.2,.7,.2,1) both;
+  animation-delay: 180ms;
+}
+
+@keyframes afridev-dashboard-enter {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes afridev-hero-image-settle {
+  from { transform: scale(1.065); }
+  to { transform: scale(1.025); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .afridev-dashboard-motion .afridev-dashboard-hero,
+  .afridev-dashboard-motion .afridev-dashboard-hero img,
+  .afridev-dashboard-motion .afridev-dashboard-kpis .afridev-dashboard-kpi,
+  .afridev-dashboard-motion .afridev-dashboard-lower > section {
+    animation: none !important;
+  }
+
+  .afridev-dashboard-motion .afridev-dashboard-kpis .afridev-dashboard-kpi {
+    transition: none !important;
+  }
+}
+
+
+/* AFRIDEV HELP GUIDE MOTION V1 */
+/* Original CSS-only transitions; no package or dependency is added. */
+.afridev-guide-motion-overlay {
+  animation: afridev-guide-overlay-in 180ms ease-out both;
+}
+
+.afridev-guide-motion-dialog {
+  transform-origin: center;
+  animation: afridev-guide-dialog-in 300ms cubic-bezier(.2,.8,.2,1) both;
+  box-shadow: 0 28px 90px rgba(2, 8, 23, .28);
+}
+
+.afridev-guide-motion-dialog .bg-gradient-to-br {
+  position: relative;
+  isolation: isolate;
+}
+
+.afridev-guide-motion-dialog .bg-gradient-to-br::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(110deg, transparent 20%, rgba(255,255,255,.09) 48%, transparent 70%);
+  background-size: 220% 100%;
+  animation: afridev-guide-header-sheen 1.2s ease-out both;
+}
+
+.afridev-guide-motion-content {
+  animation: afridev-guide-content-in 360ms 70ms ease-out both;
+}
+
+.afridev-guide-motion-dialog button,
+.afridev-guide-motion-dialog a {
+  transition: transform 160ms ease, box-shadow 160ms ease, background-color 160ms ease, color 160ms ease;
+}
+
+.afridev-guide-motion-dialog button:not(:disabled):active,
+.afridev-guide-motion-dialog a:active {
+  transform: scale(.98);
+}
+
+@keyframes afridev-guide-overlay-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes afridev-guide-dialog-in {
+  from { opacity: 0; transform: translateY(12px) scale(.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes afridev-guide-content-in {
+  from { opacity: .65; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes afridev-guide-header-sheen {
+  from { background-position: 100% 0; }
+  to { background-position: -120% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .afridev-guide-motion-overlay,
+  .afridev-guide-motion-dialog,
+  .afridev-guide-motion-content,
+  .afridev-guide-motion-dialog .bg-gradient-to-br::after {
+    animation: none !important;
+  }
+
+  .afridev-guide-motion-dialog button,
+  .afridev-guide-motion-dialog a {
+    transition: none !important;
+  }
+}

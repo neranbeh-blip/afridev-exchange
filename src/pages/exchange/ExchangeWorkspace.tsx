@@ -24,6 +24,9 @@ import {
 import { useNavigate, useParams } from "react-router-dom";
 
 import { supabase } from "../../lib/supabase";
+import DeepLText from "../../components/layout/DeepLText";
+import { useDeepLTranslation } from "../../lib/useDeepLTranslation";
+import { getAppLanguage } from "../../lib/deepLLanguage";
 
 type Profile = {
   id: string;
@@ -135,7 +138,7 @@ function formatDate(value: string | null) {
     return "—";
   }
 
-  return new Intl.DateTimeFormat("en", {
+  return new Intl.DateTimeFormat(getAppLanguage() === "FR" ? "fr-FR" : "en", {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(new Date(value));
@@ -200,6 +203,16 @@ function contributionIcon(type: ContributionType) {
 export default function ExchangeWorkspace() {
   const { exchangeId } = useParams<{ exchangeId: string }>();
   const navigate = useNavigate();
+
+  const messagePlaceholder = useDeepLTranslation("Write a message...").text;
+  const contributionTitlePlaceholder = useDeepLTranslation("e.g. Build authentication flow").text;
+  const contributionDescriptionPlaceholder = useDeepLTranslation("Describe exactly what you contributed...").text;
+  const repositoryPlaceholder = useDeepLTranslation("https://github.com/...").text;
+  const pullRequestPlaceholder = useDeepLTranslation("https://github.com/.../pull/...").text;
+  const closeContributionDetailsLabel = useDeepLTranslation("Close contribution details").text;
+  const readTitle = useDeepLTranslation("Read").text;
+  const deliveredTitle = useDeepLTranslation("Delivered — recipient is online").text;
+  const sentTitle = useDeepLTranslation("Sent — recipient is offline").text;
 
   const [currentUserId, setCurrentUserId] =
     useState<string | null>(null);
@@ -1139,8 +1152,7 @@ if (trackResult !== "ok") {
           />
 
           <p className="mt-3 text-sm text-slate-500">
-            Loading exchange workspace...
-          </p>
+            <DeepLText text={"Loading exchange workspace..."} /></p>
         </div>
       </div>
     );
@@ -1151,12 +1163,11 @@ if (trackResult !== "ok") {
       <div className="mx-auto max-w-4xl px-6 py-10">
         <div className="rounded-2xl border border-red-200 bg-red-50 p-6">
           <h1 className="text-xl font-bold text-red-800">
-            Exchange unavailable
-          </h1>
+            <DeepLText text={"Exchange unavailable"} /></h1>
 
           <p className="mt-2 text-sm text-red-700">
             {error ||
-              "We could not find this exchange."}
+              <DeepLText text="We could not find this exchange." />}
           </p>
 
           <button
@@ -1166,8 +1177,7 @@ if (trackResult !== "ok") {
             }
             className="mt-5 rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
           >
-            Back to Exchanges
-          </button>
+            <DeepLText text={"Back to Exchanges"} /></button>
         </div>
       </div>
     );
@@ -1187,8 +1197,7 @@ if (trackResult !== "ok") {
           className="mb-5 inline-flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-slate-900"
         >
           <ArrowLeft size={17} />
-          Back to Exchanges
-        </button>
+          <DeepLText text={"Back to Exchanges"} /></button>
 
         <div className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
           <div>
@@ -1202,15 +1211,15 @@ if (trackResult !== "ok") {
                   exchange.status
                 )}`}
               >
-                {statusLabel(
+                <DeepLText text={statusLabel(
                   exchange.status
-                )}
+                )} />
               </span>
             </div>
 
             <p className="max-w-3xl text-slate-500">
               {exchange.description ||
-                "Collaborate, exchange skills and build together."}
+                <DeepLText text="Collaborate, exchange skills and build together." />}
             </p>
           </div>
 
@@ -1227,8 +1236,7 @@ if (trackResult !== "ok") {
                 }
                 className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"
               >
-                Start Exchange
-              </button>
+                <DeepLText text={"Start Exchange"} /></button>
             )}
 
             {exchange.status ===
@@ -1243,8 +1251,7 @@ if (trackResult !== "ok") {
                 className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700"
               >
                 <CheckCircle2 size={17} />
-                Complete Exchange
-              </button>
+                <DeepLText text={"Complete Exchange"} /></button>
             )}
 
           </div>
@@ -1255,7 +1262,7 @@ if (trackResult !== "ok") {
 
       {error && (
         <div className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error}
+          <DeepLText text={error} />
         </div>
       )}
 
@@ -1309,21 +1316,20 @@ if (trackResult !== "ok") {
 
                       <h2 className="font-bold text-slate-950">
                         {profile?.full_name ||
-                          "AfriDev Developer"}
+                          <DeepLText text="AfriDev Developer" />}
                       </h2>
 
                       {isCurrentUser && (
                         <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-semibold text-blue-700">
-                          You
-                        </span>
+                          <DeepLText text={"You"} /></span>
                       )}
 
                     </div>
 
                     <p className="mt-1 text-sm text-slate-500">
-                      {profile?.username
+                      <DeepLText text={profile?.username
                         ? `@${profile.username}`
-                        : "Developer"}
+                        : "Developer"} />
                     </p>
 
                     <div className="mt-3 flex flex-wrap gap-3 text-xs text-slate-500">
@@ -1331,17 +1337,17 @@ if (trackResult !== "ok") {
                       {profile?.city && (
                         <span>
                           {profile.city}
-                          {profile.country
+                          <DeepLText text={profile.country
                             ? `, ${profile.country}`
-                            : ""}
+                            : ""} />
                         </span>
                       )}
 
                       <span>
-                        {participant.role ===
+                        <DeepLText text={participant.role ===
                         "owner"
                           ? "Exchange owner"
-                          : "Exchange participant"}
+                          : "Exchange participant"} />
                       </span>
 
                     </div>
@@ -1356,8 +1362,7 @@ if (trackResult !== "ok") {
                         className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-slate-700 hover:text-blue-600"
                       >
                         <GitBranch size={15} />
-                        GitHub
-                      </a>
+                        <DeepLText text={"GitHub"} /></a>
                     )}
 
                   </div>
@@ -1393,13 +1398,11 @@ if (trackResult !== "ok") {
 
                 <div>
                   <h2 className="font-bold text-slate-950">
-                    Workspace Conversation
-                  </h2>
+                    <DeepLText text={"Workspace Conversation"} /></h2>
 
                   <div className="mt-1 flex flex-wrap items-center gap-2">
                     <p className="text-xs text-slate-500">
-                      Communicate directly with your exchange partner.
-                    </p>
+                      <DeepLText text={"Communicate directly with your exchange partner."} /></p>
                     {otherParticipant && (
                       <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-slate-500">
                         <span
@@ -1407,7 +1410,7 @@ if (trackResult !== "ok") {
                             isPartnerOnline ? "bg-emerald-500" : "bg-slate-300"
                           }`}
                         />
-                        {isPartnerOnline ? "Partner online" : "Partner offline"}
+                        <DeepLText text={isPartnerOnline ? "Partner online" : "Partner offline"} />
                       </span>
                     )}
 
@@ -1429,11 +1432,11 @@ if (trackResult !== "ok") {
                               : "bg-amber-500"
                         }`}
                       />
-                      {realtimeStatus === "connected"
+                      <DeepLText text={realtimeStatus === "connected"
                         ? "Live"
                         : realtimeStatus === "error"
                           ? "Realtime unavailable"
-                          : "Connecting..."}
+                          : "Connecting..."} />
                     </span>
                   </div>
                 </div>
@@ -1461,12 +1464,10 @@ if (trackResult !== "ok") {
                   />
 
                   <p className="mt-3 font-semibold text-slate-600">
-                    Start the conversation
-                  </p>
+                    <DeepLText text={"Start the conversation"} /></p>
 
                   <p className="mt-1 max-w-sm text-sm text-slate-400">
-                    Discuss the exchange, clarify expectations and coordinate your work.
-                  </p>
+                    <DeepLText text={"Discuss the exchange, clarify expectations and coordinate your work."} /></p>
 
                 </div>
               ) : (
@@ -1516,17 +1517,17 @@ if (trackResult !== "ok") {
                                   }
                                   title={
                                     message.read_at
-                                      ? "Read"
+                                      ? readTitle
                                       : isPartnerOnline
-                                        ? "Delivered — recipient is online"
-                                        : "Sent — recipient is offline"
+                                        ? deliveredTitle
+                                        : sentTitle
                                   }
                                 >
-                                  {message.read_at
+                                  <DeepLText text={message.read_at
                                     ? "✓✓"
                                     : isPartnerOnline
                                       ? "✓✓"
-                                      : "✓"}
+                                      : "✓"} />
                                 </span>
                               )}
                             </div>
@@ -1555,7 +1556,7 @@ if (trackResult !== "ok") {
                       event.target.value
                     )
                   }
-                  placeholder="Write a message..."
+                  placeholder={messagePlaceholder}
                   className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-100"
                 />
 
@@ -1577,8 +1578,7 @@ if (trackResult !== "ok") {
                   )}
 
                   <span className="hidden sm:inline">
-                    Send
-                  </span>
+                    <DeepLText text={"Send"} /></span>
                 </button>
 
               </div>
@@ -1594,12 +1594,10 @@ if (trackResult !== "ok") {
 
               <div>
                 <h2 className="font-bold text-slate-950">
-                  Contributions
-                </h2>
+                  <DeepLText text={"Contributions"} /></h2>
 
                 <p className="mt-1 text-xs text-slate-500">
-                  Track work and verify what has been delivered.
-                </p>
+                  <DeepLText text={"Track work and verify what has been delivered."} /></p>
               </div>
 
               <button
@@ -1611,9 +1609,9 @@ if (trackResult !== "ok") {
                 }
                 className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800"
               >
-                {showContributionForm
+                <DeepLText text={showContributionForm
                   ? "Close"
-                  : "Add Contribution"}
+                  : "Add Contribution"} />
               </button>
 
             </div>
@@ -1630,8 +1628,7 @@ if (trackResult !== "ok") {
 
                   <div>
                     <label className="mb-1.5 block text-sm font-semibold text-slate-700">
-                      Contribution title
-                    </label>
+                      <DeepLText text={"Contribution title"} /></label>
 
                     <input
                       value={
@@ -1642,15 +1639,14 @@ if (trackResult !== "ok") {
                           event.target.value
                         )
                       }
-                      placeholder="e.g. Build authentication flow"
+                      placeholder={contributionTitlePlaceholder}
                       className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
                     />
                   </div>
 
                   <div>
                     <label className="mb-1.5 block text-sm font-semibold text-slate-700">
-                      Description
-                    </label>
+                      <DeepLText text={"Description"} /></label>
 
                     <textarea
                       value={
@@ -1662,7 +1658,7 @@ if (trackResult !== "ok") {
                         )
                       }
                       rows={4}
-                      placeholder="Describe exactly what you contributed..."
+                      placeholder={contributionDescriptionPlaceholder}
                       className="w-full resize-none rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
                     />
                   </div>
@@ -1671,8 +1667,7 @@ if (trackResult !== "ok") {
 
                     <div>
                       <label className="mb-1.5 block text-sm font-semibold text-slate-700">
-                        Contribution type
-                      </label>
+                        <DeepLText text={"Contribution type"} /></label>
 
                       <select
                         value={
@@ -1692,9 +1687,9 @@ if (trackResult !== "ok") {
                               key={type}
                               value={type}
                             >
-                              {statusLabel(
+                              <DeepLText text={statusLabel(
                                 type
-                              )}
+                              )} />
                             </option>
                           )
                         )}
@@ -1703,8 +1698,7 @@ if (trackResult !== "ok") {
 
                     <div>
                       <label className="mb-1.5 block text-sm font-semibold text-slate-700">
-                        Repository URL
-                      </label>
+                        <DeepLText text={"Repository URL"} /></label>
 
                       <input
                         value={
@@ -1715,7 +1709,7 @@ if (trackResult !== "ok") {
                             event.target.value
                           )
                         }
-                        placeholder="https://github.com/..."
+                        placeholder={repositoryPlaceholder}
                         className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
                       />
                     </div>
@@ -1724,8 +1718,7 @@ if (trackResult !== "ok") {
 
                   <div>
                     <label className="mb-1.5 block text-sm font-semibold text-slate-700">
-                      Pull request URL
-                    </label>
+                      <DeepLText text={"Pull request URL"} /></label>
 
                     <input
                       value={
@@ -1736,7 +1729,7 @@ if (trackResult !== "ok") {
                           event.target.value
                         )
                       }
-                      placeholder="https://github.com/.../pull/..."
+                      placeholder={pullRequestPlaceholder}
                       className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
                     />
                   </div>
@@ -1757,8 +1750,7 @@ if (trackResult !== "ok") {
                         />
                       )}
 
-                      Create Contribution
-                    </button>
+                      <DeepLText text={"Create Contribution"} /></button>
 
                   </div>
 
@@ -1779,12 +1771,10 @@ if (trackResult !== "ok") {
                   />
 
                   <p className="mt-3 font-semibold text-slate-600">
-                    No contributions yet
-                  </p>
+                    <DeepLText text={"No contributions yet"} /></p>
 
                   <p className="mt-1 text-sm text-slate-400">
-                    Add your first contribution to start documenting the work.
-                  </p>
+                    <DeepLText text={"Add your first contribution to start documenting the work."} /></p>
 
                 </div>
               ) : (
@@ -1832,9 +1822,9 @@ if (trackResult !== "ok") {
                                   contribution.status
                                 )}`}
                               >
-                                {statusLabel(
+                                <DeepLText text={statusLabel(
                                   contribution.status
-                                )}
+                                )} />
                               </span>
 
                             </div>
@@ -1848,12 +1838,12 @@ if (trackResult !== "ok") {
                             <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-slate-500">
 
                               <span>
-                                By{" "}
+                                <DeepLText text={"By"} /><DeepLText text={" "} />
                                 <strong className="text-slate-700">
                                   {contribution
                                     .contributor
                                     ?.full_name ||
-                                    "Developer"}
+                                    <DeepLText text="Developer" />}
                                 </strong>
                               </span>
 
@@ -1881,8 +1871,7 @@ if (trackResult !== "ok") {
                                     <GitBranch
                                       size={14}
                                     />
-                                    Repository
-                                  </a>
+                                    <DeepLText text={"Repository"} /></a>
                                 )}
 
                                 {contribution.pull_request_url && (
@@ -1894,8 +1883,7 @@ if (trackResult !== "ok") {
                                     rel="noreferrer"
                                     className="text-xs font-semibold text-blue-600 hover:text-blue-700"
                                   >
-                                    Pull Request
-                                  </a>
+                                    <DeepLText text={"Pull Request"} /></a>
                                 )}
 
                               </div>
@@ -1926,9 +1914,9 @@ if (trackResult !== "ok") {
                                   )}
 
                                   <span className="text-xs font-bold text-slate-700">
-                                    {statusLabel(
+                                    <DeepLText text={statusLabel(
                                       validation.decision
-                                    )}
+                                    )} />
                                   </span>
 
                                 </div>
@@ -1955,8 +1943,7 @@ if (trackResult !== "ok") {
                               }
                               className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:border-blue-300 hover:text-blue-700"
                             >
-                              View Contribution
-                            </button>
+                              <DeepLText text={"View Contribution"} /></button>
 
                             {own &&
                               contribution.status ===
@@ -1970,8 +1957,7 @@ if (trackResult !== "ok") {
                                   }
                                   className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700"
                                 >
-                                  Submit for Review
-                                </button>
+                                  <DeepLText text={"Submit for Review"} /></button>
                               )}
 
                             {!own &&
@@ -2003,8 +1989,7 @@ if (trackResult !== "ok") {
                                 }}
                                 className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-700 hover:bg-amber-100"
                               >
-                                Reopen Review
-                              </button>
+                                <DeepLText text={"Reopen Review"} /></button>
                             )}
 
                             {!own &&
@@ -2030,8 +2015,7 @@ if (trackResult !== "ok") {
                                     <CheckCircle2
                                       size={14}
                                     />
-                                    Approve
-                                  </button>
+                                    <DeepLText text={"Approve"} /></button>
 
                                   <button
                                     type="button"
@@ -2046,8 +2030,7 @@ if (trackResult !== "ok") {
                                     }
                                     className="rounded-lg bg-amber-500 px-3 py-2 text-xs font-semibold text-white hover:bg-amber-600 disabled:opacity-50"
                                   >
-                                    Revision
-                                  </button>
+                                    <DeepLText text={"Revision"} /></button>
 
                                   <button
                                     type="button"
@@ -2065,8 +2048,7 @@ if (trackResult !== "ok") {
                                     <XCircle
                                       size={14}
                                     />
-                                    Reject
-                                  </button>
+                                    <DeepLText text={"Reject"} /></button>
                                 </>
                               )}
 
@@ -2104,12 +2086,10 @@ if (trackResult !== "ok") {
 
               <div>
                 <h2 className="font-bold text-slate-950">
-                  Exchange Progress
-                </h2>
+                  <DeepLText text={"Exchange Progress"} /></h2>
 
                 <p className="text-xs text-slate-500">
-                  Build trust through verified work.
-                </p>
+                  <DeepLText text={"Build trust through verified work."} /></p>
               </div>
 
             </div>
@@ -2187,7 +2167,7 @@ if (trackResult !== "ok") {
                         : "text-slate-400"
                     }`}
                   >
-                    {step.label}
+                    <DeepLText text={step.label} />
                   </span>
 
                 </div>
@@ -2202,15 +2182,13 @@ if (trackResult !== "ok") {
           <section className="rounded-2xl border border-slate-200 bg-white p-5">
 
             <h2 className="font-bold text-slate-950">
-              Exchange Details
-            </h2>
+              <DeepLText text={"Exchange Details"} /></h2>
 
             <div className="mt-4 space-y-4">
 
               <div>
                 <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
-                  Created
-                </p>
+                  <DeepLText text={"Created"} /></p>
 
                 <p className="mt-1 text-sm text-slate-700">
                   {formatDate(
@@ -2221,8 +2199,7 @@ if (trackResult !== "ok") {
 
               <div>
                 <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
-                  Started
-                </p>
+                  <DeepLText text={"Started"} /></p>
 
                 <p className="mt-1 text-sm text-slate-700">
                   {formatDate(
@@ -2233,8 +2210,7 @@ if (trackResult !== "ok") {
 
               <div>
                 <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
-                  Completed
-                </p>
+                  <DeepLText text={"Completed"} /></p>
 
                 <p className="mt-1 text-sm text-slate-700">
                   {formatDate(
@@ -2253,8 +2229,7 @@ if (trackResult !== "ok") {
             <section className="rounded-2xl border border-slate-200 bg-white p-5">
 
               <h2 className="font-bold text-slate-950">
-                Exchange Partner
-              </h2>
+                <DeepLText text={"Exchange Partner"} /></h2>
 
               <div className="mt-4 flex items-center gap-3">
 
@@ -2291,15 +2266,15 @@ if (trackResult !== "ok") {
                     {otherParticipant
                       .profile
                       ?.full_name ||
-                      "Developer"}
+                      <DeepLText text="Developer" />}
                   </p>
 
                   <p className="text-xs text-slate-500">
-                    {otherParticipant
+                    <DeepLText text={otherParticipant
                       .profile
                       ?.username
                       ? `@${otherParticipant.profile.username}`
-                      : "AfriDev Developer"}
+                      : "AfriDev Developer"} />
                   </p>
 
                 </div>
@@ -2344,14 +2319,14 @@ if (trackResult !== "ok") {
                       selectedContribution.status
                     )}`}
                   >
-                    {statusLabel(selectedContribution.status)}
+                    <DeepLText text={statusLabel(selectedContribution.status)} />
                   </span>
                 </div>
                 <p className="mt-1 text-sm text-slate-500">
                   {selectedContribution.contributor?.full_name ||
-                    "AfriDev Developer"}
-                  {" · "}
-                  {statusLabel(selectedContribution.contribution_type)}
+                    <DeepLText text="AfriDev Developer" />}
+                  <DeepLText text={" · "} />
+                  <DeepLText text={statusLabel(selectedContribution.contribution_type)} />
                 </p>
               </div>
 
@@ -2359,7 +2334,7 @@ if (trackResult !== "ok") {
                 type="button"
                 onClick={() => setSelectedContribution(null)}
                 className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
-                aria-label="Close contribution details"
+                aria-label={closeContributionDetailsLabel}
               >
                 <XCircle size={20} />
               </button>
@@ -2368,8 +2343,7 @@ if (trackResult !== "ok") {
             <div className="space-y-6 p-6">
               <section>
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                  Description
-                </p>
+                  <DeepLText text={"Description"} /></p>
                 <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50 p-4">
                   <p className="whitespace-pre-wrap text-sm leading-7 text-slate-700">
                     {selectedContribution.description}
@@ -2379,26 +2353,25 @@ if (trackResult !== "ok") {
 
               <section>
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                  Contribution Information
-                </p>
+                  <DeepLText text={"Contribution Information"} /></p>
                 <div className="mt-3 grid gap-3 sm:grid-cols-2">
                   <div className="rounded-xl border border-slate-200 p-4">
-                    <p className="text-xs text-slate-400">Contributor</p>
+                    <p className="text-xs text-slate-400"><DeepLText text={"Contributor"} /></p>
                     <p className="mt-1 font-semibold text-slate-800">
                       {selectedContribution.contributor?.full_name ||
-                        "Developer"}
+                        <DeepLText text="Developer" />}
                     </p>
                   </div>
                   <div className="rounded-xl border border-slate-200 p-4">
-                    <p className="text-xs text-slate-400">Type</p>
+                    <p className="text-xs text-slate-400"><DeepLText text={"Type"} /></p>
                     <p className="mt-1 font-semibold text-slate-800">
-                      {statusLabel(
+                      <DeepLText text={statusLabel(
                         selectedContribution.contribution_type
-                      )}
+                      )} />
                     </p>
                   </div>
                   <div className="rounded-xl border border-slate-200 p-4 sm:col-span-2">
-                    <p className="text-xs text-slate-400">Submitted</p>
+                    <p className="text-xs text-slate-400"><DeepLText text={"Submitted"} /></p>
                     <p className="mt-1 font-semibold text-slate-800">
                       {formatDate(selectedContribution.created_at)}
                     </p>
@@ -2410,8 +2383,7 @@ if (trackResult !== "ok") {
                 selectedContribution.pull_request_url) && (
                 <section>
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                    Evidence
-                  </p>
+                    <DeepLText text={"Evidence"} /></p>
                   <div className="mt-3 flex flex-wrap gap-3">
                     {selectedContribution.repository_url && (
                       <a
@@ -2421,8 +2393,7 @@ if (trackResult !== "ok") {
                         className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800"
                       >
                         <GitBranch size={16} />
-                        View Repository
-                      </a>
+                        <DeepLText text={"View Repository"} /></a>
                     )}
                     {selectedContribution.pull_request_url && (
                       <a
@@ -2432,8 +2403,7 @@ if (trackResult !== "ok") {
                         className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"
                       >
                         <FileText size={16} />
-                        View Pull Request
-                      </a>
+                        <DeepLText text={"View Pull Request"} /></a>
                     )}
                   </div>
                 </section>
@@ -2450,8 +2420,7 @@ if (trackResult !== "ok") {
                 return (
                   <section className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                     <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                      Latest Review
-                    </p>
+                      <DeepLText text={"Latest Review"} /></p>
                     <div className="mt-2 flex items-center gap-2">
                       {validation.decision === "approved" ? (
                         <CheckCircle2
@@ -2470,7 +2439,7 @@ if (trackResult !== "ok") {
                         />
                       )}
                       <span className="font-semibold text-slate-800">
-                        {statusLabel(validation.decision)}
+                        <DeepLText text={statusLabel(validation.decision)} />
                       </span>
                     </div>
                     {validation.comment && (
@@ -2488,13 +2457,10 @@ if (trackResult !== "ok") {
                   <div className="flex items-center gap-2">
                     <CheckCircle2 size={18} className="text-emerald-600" />
                     <p className="font-semibold text-emerald-800">
-                      This contribution is verified.
-                    </p>
+                      <DeepLText text={"This contribution is verified."} /></p>
                   </div>
                   <p className="mt-2 text-sm leading-6 text-emerald-700">
-                    Verification is locked. Reopen the review only if there
-                    is a legitimate reason to review the work again.
-                  </p>
+                    <DeepLText text={"Verification is locked. Reopen the review only if there\n                    is a legitimate reason to review the work again."} /></p>
                   <button
                     type="button"
                     onClick={async () => {
@@ -2526,8 +2492,7 @@ if (trackResult !== "ok") {
                     }}
                     className="mt-4 rounded-lg border border-amber-300 bg-white px-3 py-2 text-xs font-semibold text-amber-700 hover:bg-amber-50"
                   >
-                    Reopen Review
-                  </button>
+                    <DeepLText text={"Reopen Review"} /></button>
                 </section>
               )}
 
@@ -2535,12 +2500,9 @@ if (trackResult !== "ok") {
                 selectedContribution.status === "under_review" && (
                   <section className="border-t border-slate-200 pt-5">
                     <p className="text-sm font-semibold text-slate-800">
-                      Review This Contribution
-                    </p>
+                      <DeepLText text={"Review This Contribution"} /></p>
                     <p className="mt-1 text-xs leading-5 text-slate-500">
-                      Inspect the description and evidence before making a
-                      verification decision.
-                    </p>
+                      <DeepLText text={"Inspect the description and evidence before making a\n                      verification decision."} /></p>
                     <div className="mt-4 flex flex-wrap gap-2">
                       <button
                         type="button"
@@ -2554,8 +2516,7 @@ if (trackResult !== "ok") {
                         className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
                       >
                         <CheckCircle2 size={14} />
-                        Approve
-                      </button>
+                        <DeepLText text={"Approve"} /></button>
                       <button
                         type="button"
                         disabled={validating}
@@ -2567,8 +2528,7 @@ if (trackResult !== "ok") {
                         }
                         className="rounded-lg bg-amber-500 px-3 py-2 text-xs font-semibold text-white hover:bg-amber-600 disabled:opacity-50"
                       >
-                        Request Revision
-                      </button>
+                        <DeepLText text={"Request Revision"} /></button>
                       <button
                         type="button"
                         disabled={validating}
@@ -2581,8 +2541,7 @@ if (trackResult !== "ok") {
                         className="inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-2 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-50"
                       >
                         <XCircle size={14} />
-                        Reject
-                      </button>
+                        <DeepLText text={"Reject"} /></button>
                     </div>
                   </section>
                 )}

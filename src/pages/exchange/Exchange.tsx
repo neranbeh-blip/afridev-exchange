@@ -13,9 +13,12 @@ import {
   XCircle,
 } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
 import MatchingEngine from "../../components/exchange/MatchingEngine";
+import DeepLText from "../../components/layout/DeepLText";
+import { useDeepLTranslation } from "../../lib/useDeepLTranslation";
 
 type Skill = {
   id: string;
@@ -46,6 +49,14 @@ type Need = {
 type FormMode = "offer" | "need" | null;
 
 function Exchange() {
+  const offerTitlePlaceholder = useDeepLTranslation("e.g. React & Supabase Development").text;
+  const needTitlePlaceholder = useDeepLTranslation("e.g. Flutter Development").text;
+  const offerDescriptionPlaceholder = useDeepLTranslation("Explain what you can help another developer with...").text;
+  const needDescriptionPlaceholder = useDeepLTranslation("Explain what you want to learn or get help with...").text;
+  const skillSearchPlaceholder = useDeepLTranslation("Search skills...").text;
+  const closeLabel = useDeepLTranslation("Close").text;
+  const deleteOfferConfirm = useDeepLTranslation("Are you sure you want to delete this offer?").text;
+  const deleteNeedConfirm = useDeepLTranslation("Are you sure you want to delete this need?").text;
   const [offers, setOffers] = useState<Offer[]>([]);
   const [needs, setNeeds] = useState<Need[]>([]);
   const [availableSkills, setAvailableSkills] = useState<Skill[]>([]);
@@ -66,6 +77,18 @@ function Exchange() {
   useEffect(() => {
     loadExchangeData();
   }, []);
+
+  // Keep the page behind the Add Offer/Add Need dialog from scrolling.
+  useEffect(() => {
+    if (!formMode) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [formMode]);
 
   async function loadExchangeData() {
     setLoading(true);
@@ -414,7 +437,7 @@ function Exchange() {
   }
 
   async function deleteOffer(id: string) {
-    if (!window.confirm("Are you sure you want to delete this offer?")) {
+    if (!window.confirm(deleteOfferConfirm)) {
       return;
     }
 
@@ -433,7 +456,7 @@ function Exchange() {
   }
 
   async function deleteNeed(id: string) {
-    if (!window.confirm("Are you sure you want to delete this need?")) {
+    if (!window.confirm(deleteNeedConfirm)) {
       return;
     }
 
@@ -470,7 +493,7 @@ function Exchange() {
         <div className="text-center">
           <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-blue-600" />
           <p className="mt-4 text-sm text-slate-500">
-            Loading your exchange center...
+            <DeepLText text='Loading your exchange center...' />
           </p>
         </div>
       </div>
@@ -482,23 +505,21 @@ function Exchange() {
       {/* Header */}
       <div className="mb-8">
         <p className="text-sm font-semibold text-blue-600">
-          Skill Exchange
+          <DeepLText text='Skill Exchange' />
         </p>
 
         <h1 className="mt-1 text-3xl font-bold tracking-tight text-slate-950">
-          Exchange Center
+          <DeepLText text='Exchange Center' />
         </h1>
 
         <p className="mt-2 max-w-2xl text-slate-500">
-          Tell the AfriDev community what you can offer and what
-          you need. AfriDev uses these skills to discover
-          complementary opportunities.
+          <DeepLText text='Tell the AfriDev community what you can offer and what\n          you need. AfriDev uses these skills to discover\n          complementary opportunities.' />
         </p>
       </div>
 
       {error && !formMode && (
         <div className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error}
+          <DeepLText text={error} />
         </div>
       )}
 
@@ -511,12 +532,11 @@ function Exchange() {
 
           <div>
             <h2 className="font-bold text-slate-950">
-              Exchange skills, not just profiles
+              <DeepLText text='Exchange skills, not just profiles' />
             </h2>
 
             <p className="mt-1 text-sm leading-6 text-slate-600">
-              AfriDev compares the skills you offer with the
-              skills other developers need.
+              <DeepLText text='AfriDev compares the skills you offer with the\n              skills other developers need.' />
             </p>
           </div>
         </div>
@@ -534,12 +554,12 @@ function Exchange() {
                 </div>
 
                 <h2 className="text-xl font-bold text-slate-950">
-                  I Offer
+                  <DeepLText text='I Offer' />
                 </h2>
               </div>
 
               <p className="mt-2 text-sm leading-6 text-slate-500">
-                Skills, knowledge, or help you can provide.
+                <DeepLText text='Skills, knowledge, or help you can provide.' />
               </p>
             </div>
 
@@ -549,7 +569,7 @@ function Exchange() {
               className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-blue-700 px-3.5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-800"
             >
               <Plus size={17} />
-              Add
+              <DeepLText text='Add' />
             </button>
           </div>
 
@@ -585,12 +605,12 @@ function Exchange() {
                 </div>
 
                 <h2 className="text-xl font-bold text-slate-950">
-                  I Need
+                  <DeepLText text='I Need' />
                 </h2>
               </div>
 
               <p className="mt-2 text-sm leading-6 text-slate-500">
-                Skills, knowledge, or help you want to receive.
+                <DeepLText text='Skills, knowledge, or help you want to receive.' />
               </p>
             </div>
 
@@ -600,7 +620,7 @@ function Exchange() {
               className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-blue-700 px-3.5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-800"
             >
               <Plus size={17} />
-              Add
+              <DeepLText text='Add' />
             </button>
           </div>
 
@@ -634,25 +654,30 @@ function Exchange() {
       <ExchangeRequests />
 
       {/* Modal */}
-      {formMode && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4">
-          <div className="w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl">
+      {formMode && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center overflow-y-auto bg-slate-950/50 p-3 sm:p-4">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="exchange-form-title"
+            className="my-auto flex max-h-[calc(100dvh-1.5rem)] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-white shadow-2xl sm:max-h-[calc(100dvh-2rem)]"
+          >
             <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
               <div>
-                <h2 className="text-xl font-bold text-slate-950">
-                  {editingId
+                <h2 id="exchange-form-title" className="text-xl font-bold text-slate-950">
+                  <DeepLText text={editingId
                     ? `Edit ${
                         formMode === "offer" ? "Offer" : "Need"
                       }`
                     : `Create ${
                         formMode === "offer" ? "Offer" : "Need"
-                      }`}
+                      }`} />
                 </h2>
 
                 <p className="mt-1 text-sm text-slate-500">
-                  {formMode === "offer"
+                  <DeepLText text={formMode === "offer"
                     ? "Describe what you can contribute and select your skills."
-                    : "Describe what you need and select the required skills."}
+                    : "Describe what you need and select the required skills."} />
                 </p>
               </div>
 
@@ -660,21 +685,21 @@ function Exchange() {
                 type="button"
                 onClick={closeForm}
                 className="rounded-xl p-2 text-slate-500 transition hover:bg-slate-100"
-                aria-label="Close"
+                aria-label={closeLabel}
               >
                 <X size={20} />
               </button>
             </div>
 
-            <div className="max-h-[75vh] overflow-y-auto p-6">
+            <div className="min-h-0 flex-1 overflow-y-auto p-5 sm:p-6">
               {error && (
                 <div className="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                  {error}
+                  <DeepLText text={error} />
                 </div>
               )}
 
               <label className="mb-2 block text-sm font-semibold text-slate-700">
-                Title
+                <DeepLText text='Title' />
               </label>
 
               <input
@@ -682,14 +707,14 @@ function Exchange() {
                 onChange={(event) => setTitle(event.target.value)}
                 placeholder={
                   formMode === "offer"
-                    ? "e.g. React & Supabase Development"
-                    : "e.g. Flutter Development"
+                    ? offerTitlePlaceholder
+                    : needTitlePlaceholder
                 }
                 className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
               />
 
               <label className="mb-2 mt-5 block text-sm font-semibold text-slate-700">
-                Description
+                <DeepLText text='Description' />
               </label>
 
               <textarea
@@ -700,8 +725,8 @@ function Exchange() {
                 rows={4}
                 placeholder={
                   formMode === "offer"
-                    ? "Explain what you can help another developer with..."
-                    : "Explain what you want to learn or get help with..."
+                    ? offerDescriptionPlaceholder
+                    : needDescriptionPlaceholder
                 }
                 className="w-full resize-none rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
               />
@@ -709,12 +734,11 @@ function Exchange() {
               <div className="mt-5">
                 <div className="flex items-center justify-between">
                   <label className="block text-sm font-semibold text-slate-700">
-                    Skills
+                    <DeepLText text='Skills' />
                   </label>
 
                   <span className="text-xs font-medium text-blue-600">
-                    {selectedSkillIds.length} selected
-                  </span>
+                    {selectedSkillIds.length} <DeepLText text={"selected"} /></span>
                 </div>
 
                 <input
@@ -722,14 +746,14 @@ function Exchange() {
                   onChange={(event) =>
                     setSkillSearch(event.target.value)
                   }
-                  placeholder="Search skills..."
+                  placeholder={skillSearchPlaceholder}
                   className="mt-3 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
                 />
 
                 <div className="mt-3 max-h-48 space-y-2 overflow-y-auto rounded-xl border border-slate-200 p-2">
                   {filteredSkills.length === 0 ? (
                     <div className="p-4 text-center text-sm text-slate-500">
-                      No skills found.
+                      <DeepLText text='No skills found.' />
                     </div>
                   ) : (
                     filteredSkills.map((skill) => {
@@ -782,7 +806,7 @@ function Exchange() {
                 onClick={closeForm}
                 className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-100"
               >
-                Cancel
+                <DeepLText text='Cancel' />
               </button>
 
               <button
@@ -791,15 +815,16 @@ function Exchange() {
                 disabled={saving}
                 className="flex-1 rounded-xl bg-blue-700 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {saving
+                <DeepLText text={saving
                   ? "Saving..."
                   : editingId
                     ? "Save Changes"
-                    : "Create"}
+                    : "Create"} />
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
@@ -816,6 +841,9 @@ function ExchangeItem({
   onEdit: () => void;
   onDelete: () => void;
 }) {
+  const editLabel = useDeepLTranslation(`Edit ${type}`).text;
+  const deleteLabel = useDeepLTranslation(`Delete ${type}`).text;
+
   return (
     <div className="rounded-xl border border-slate-200 p-5 transition hover:border-blue-200 hover:shadow-sm">
       <div className="flex items-start justify-between gap-4">
@@ -832,7 +860,7 @@ function ExchangeItem({
                   : "bg-slate-100 text-slate-600"
               }`}
             >
-              {item.status}
+              <DeepLText text={item.status} />
             </span>
           </div>
 
@@ -863,7 +891,7 @@ function ExchangeItem({
             type="button"
             onClick={onEdit}
             className="rounded-lg p-2 text-slate-500 hover:bg-blue-50 hover:text-blue-700"
-            aria-label={`Edit ${type}`}
+            aria-label={editLabel}
           >
             <Edit3 size={17} />
           </button>
@@ -872,7 +900,7 @@ function ExchangeItem({
             type="button"
             onClick={onDelete}
             className="rounded-lg p-2 text-slate-500 hover:bg-red-50 hover:text-red-600"
-            aria-label={`Delete ${type}`}
+            aria-label={deleteLabel}
           >
             <Trash2 size={17} />
           </button>
@@ -895,10 +923,10 @@ function EmptyExchangeState({
 }) {
   return (
     <div className="mt-6 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
-      <h3 className="font-semibold text-slate-900">{title}</h3>
+      <h3 className="font-semibold text-slate-900"><DeepLText text={title} /></h3>
 
       <p className="mx-auto mt-1 max-w-sm text-sm leading-6 text-slate-500">
-        {description}
+        <DeepLText text={description} />
       </p>
 
       <button
@@ -907,7 +935,7 @@ function EmptyExchangeState({
         className="mt-4 inline-flex items-center gap-2 font-semibold text-blue-700 hover:text-blue-800"
       >
         <Plus size={17} />
-        {buttonLabel}
+        <DeepLText text={buttonLabel} />
       </button>
     </div>
   );
@@ -1084,12 +1112,20 @@ function ExchangeRequests() {
     }
   }
 
-  async function notify(developerId: string, title: string, message: string) {
+  async function notify(
+    developerId: string,
+    key: string,
+    title: string,
+    message: string,
+    exchangeTitle: string
+  ) {
     const { error } = await supabase.from("notifications").insert({
       user_id: developerId,
       type: "exchange",
       title,
       message,
+      translation_key: key,
+      translation_params: { title: exchangeTitle },
       link: "/exchange",
     });
     if (error) console.warn("Notification error:", error.message);
@@ -1122,15 +1158,15 @@ function ExchangeRequests() {
       const { data: { user } } = await supabase.auth.getUser();
       const other = exchange.participants.find((p) => p.developer_id !== user?.id);
       if (other) {
-        const messages: Record<string, [string, string]> = {
-          negotiating: ["Exchange negotiation", `The exchange "${exchange.title}" is now being negotiated.`],
-          accepted: ["Exchange accepted", `The exchange "${exchange.title}" was accepted.`],
-          active: ["Collaboration started", `The collaboration "${exchange.title}" is now active.`],
-          completed: ["Exchange completed", `The exchange "${exchange.title}" has been completed.`],
-          cancelled: ["Exchange rejected", `The exchange "${exchange.title}" was rejected.`],
+        const messages: Record<string, [string, string, string]> = {
+          negotiating: ["exchange_negotiating", "Exchange negotiation", `The exchange "${exchange.title}" is now being negotiated.`],
+          accepted: ["exchange_accepted", "Exchange accepted", `The exchange "${exchange.title}" was accepted.`],
+          active: ["exchange_active", "Collaboration started", `The collaboration "${exchange.title}" is now active.`],
+          completed: ["exchange_completed", "Exchange completed", `The exchange "${exchange.title}" has been completed.`],
+          cancelled: ["exchange_rejected", "Exchange rejected", `The exchange "${exchange.title}" was rejected.`],
         };
-        const [title, message] = messages[status];
-        await notify(other.developer_id, title, message);
+        const [key, title, message] = messages[status];
+        await notify(other.developer_id, key, title, message, exchange.title);
       }
 
       await loadExchanges();
@@ -1152,7 +1188,7 @@ function ExchangeRequests() {
       <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex items-center gap-3 text-sm text-slate-500">
           <Loader2 size={20} className="animate-spin text-blue-600" />
-          Loading your exchanges...
+          <DeepLText text='Loading your exchanges...' />
         </div>
       </section>
     );
@@ -1188,13 +1224,12 @@ function ExchangeRequests() {
                 <ArrowRightLeft size={21} />
               </div>
               <div>
-                <p className="text-sm font-semibold text-blue-600">Collaboration</p>
-                <h2 className="text-xl font-bold text-slate-950">My Exchanges</h2>
+                <p className="text-sm font-semibold text-blue-600"><DeepLText text='Collaboration' /></p>
+                <h2 className="text-xl font-bold text-slate-950"><DeepLText text='My Exchanges' /></h2>
               </div>
             </div>
             <p className="mt-3 text-sm leading-6 text-slate-500">
-              See requests you sent, requests you received,
-              active collaborations and completed exchanges.
+              <DeepLText text='See requests you sent, requests you received,\n              active collaborations and completed exchanges.' />
             </p>
           </div>
 
@@ -1205,11 +1240,10 @@ function ExchangeRequests() {
             className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
           >
             {refreshing ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
-            Refresh
-          </button>
+            <DeepLText text={"Refresh"} /></button>
         </div>
 
-        {error && <div className="mt-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>}
+        {error && <div className="mt-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700"><DeepLText text={error} /></div>}
 
         <ExchangeSection
           title="Incoming Exchange Requests"
@@ -1282,7 +1316,7 @@ function ExchangeRequests() {
                 <CheckCircle2 size={21} className="text-emerald-600" />
                 <div>
                   <p className="font-semibold text-emerald-900">{exchange.title}</p>
-                  <p className="text-sm text-emerald-700">Exchange completed successfully.</p>
+                  <p className="text-sm text-emerald-700"><DeepLText text='Exchange completed successfully.' /></p>
                 </div>
               </div>
             </button>
@@ -1312,15 +1346,15 @@ function ExchangeSection({ title, description, empty, count, children }: { title
     <div className="mt-10">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="font-bold text-slate-950">{title}</h3>
-          <p className="mt-1 text-sm text-slate-500">{description}</p>
+          <h3 className="font-bold text-slate-950"><DeepLText text={title} /></h3>
+          <p className="mt-1 text-sm text-slate-500"><DeepLText text={description} /></p>
         </div>
         {typeof count === "number" && count > 0 && (
           <span className="rounded-full bg-orange-100 px-3 py-1 text-xs font-bold text-orange-700">{count}</span>
         )}
       </div>
       {!hasChildren ? (
-        <div className="mt-4 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-7 text-center text-sm text-slate-500">{empty}</div>
+        <div className="mt-4 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-7 text-center text-sm text-slate-500"><DeepLText text={empty} /></div>
       ) : (
         <div className="mt-4 space-y-4">{children}</div>
       )}
@@ -1334,7 +1368,7 @@ function RequestCard({ exchange, loading, onView, onAccept, onNegotiate, onRejec
     <div className="rounded-2xl border border-orange-200 bg-orange-50/50 p-5">
       <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
         <div className="min-w-0">
-          <p className="text-xs font-bold uppercase tracking-wide text-orange-600">New exchange request</p>
+          <p className="text-xs font-bold uppercase tracking-wide text-orange-600"><DeepLText text='New exchange request' /></p>
           <div className="mt-2 flex items-center gap-3">
             <Avatar profile={developer} />
             <div>
@@ -1343,17 +1377,17 @@ function RequestCard({ exchange, loading, onView, onAccept, onNegotiate, onRejec
             </div>
           </div>
           <h5 className="mt-4 font-semibold text-slate-900">{exchange.title}</h5>
-          <p className="mt-2 text-sm leading-6 text-slate-600">{exchange.description || exchange.match?.explanation || "A developer wants to exchange skills with you."}</p>
+          <p className="mt-2 text-sm leading-6 text-slate-600">{exchange.description || exchange.match?.explanation || <DeepLText text="A developer wants to exchange skills with you." />}</p>
           <div className="mt-4 flex flex-wrap gap-2">
-            <span className="rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-blue-700">{Math.round(exchange.match?.compatibility_score || 0)}% compatibility</span>
-            <span className="rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-orange-700">Pending</span>
+            <span className="rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-blue-700">{Math.round(exchange.match?.compatibility_score || 0)}<DeepLText text={"% compatibility"} /></span>
+            <span className="rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-orange-700"><DeepLText text='Pending' /></span>
           </div>
         </div>
         <div className="flex shrink-0 flex-wrap gap-2 lg:flex-col">
-          <button type="button" onClick={onView} className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">View</button>
-          <button type="button" onClick={onReject} disabled={loading} className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"><XCircle size={16} />Reject</button>
-          <button type="button" onClick={onNegotiate} disabled={loading} className="rounded-xl border border-blue-200 bg-white px-4 py-2.5 text-sm font-semibold text-blue-700 hover:bg-blue-50 disabled:opacity-50">Negotiate</button>
-          <button type="button" onClick={onAccept} disabled={loading} className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-800 disabled:opacity-50">{loading ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}Accept</button>
+          <button type="button" onClick={onView} className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"><DeepLText text='View' /></button>
+          <button type="button" onClick={onReject} disabled={loading} className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"><XCircle size={16} /><DeepLText text='Reject' /></button>
+          <button type="button" onClick={onNegotiate} disabled={loading} className="rounded-xl border border-blue-200 bg-white px-4 py-2.5 text-sm font-semibold text-blue-700 hover:bg-blue-50 disabled:opacity-50"><DeepLText text='Negotiate' /></button>
+          <button type="button" onClick={onAccept} disabled={loading} className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-800 disabled:opacity-50">{loading ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}<DeepLText text={"Accept"} /></button>
         </div>
       </div>
     </div>
@@ -1378,7 +1412,7 @@ function SentRequestCard({
       <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
         <div className="min-w-0">
           <p className="text-xs font-bold uppercase tracking-wide text-blue-600">
-            Exchange request sent
+            <DeepLText text='Exchange request sent' />
           </p>
 
           <div className="mt-2 flex items-center gap-3">
@@ -1412,11 +1446,10 @@ function SentRequestCard({
               {Math.round(
                 exchange.match?.compatibility_score || 0
               )}
-              % compatibility
-            </span>
+              <DeepLText text={"% compatibility"} /></span>
 
             <span className="rounded-full bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700">
-              Pending response
+              <DeepLText text='Pending response' />
             </span>
           </div>
         </div>
@@ -1427,7 +1460,7 @@ function SentRequestCard({
             onClick={onView}
             className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
           >
-            View Request
+            <DeepLText text='View Request' />
           </button>
 
           <button
@@ -1436,7 +1469,7 @@ function SentRequestCard({
             disabled={loading}
             className="rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"
           >
-            {loading ? "Cancelling..." : "Cancel Request"}
+            <DeepLText text={loading ? "Cancelling..." : "Cancel Request"} />
           </button>
         </div>
       </div>
@@ -1462,16 +1495,16 @@ function WorkspaceCard({
     <div className="rounded-2xl border border-slate-200 bg-white p-5 hover:border-blue-200 hover:shadow-sm">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <p className="text-xs font-bold uppercase tracking-wide text-blue-600">Exchange workspace</p>
+          <p className="text-xs font-bold uppercase tracking-wide text-blue-600"><DeepLText text='Exchange workspace' /></p>
           <h4 className="mt-1 truncate font-bold text-slate-950">{exchange.title}</h4>
-          <p className="mt-1 text-sm text-slate-500">with {exchange.otherDeveloper?.full_name || "Developer"}</p>
+          <p className="mt-1 text-sm text-slate-500"><DeepLText text={"with"} />{exchange.otherDeveloper?.full_name || "Developer"}</p>
         </div>
         <StatusBadge status={exchange.status} />
       </div>
-      <p className="mt-4 text-sm leading-6 text-slate-600">{exchange.description || exchange.match?.explanation || "Exchange collaboration."}</p>
+      <p className="mt-4 text-sm leading-6 text-slate-600">{exchange.description || exchange.match?.explanation || <DeepLText text="Exchange collaboration." />}</p>
       <div className="mt-4 flex flex-wrap gap-2">
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700"><Users size={13} />{exchange.participants.length} participants</span>
-        <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-600">{Math.round(exchange.match?.compatibility_score || 0)}% match</span>
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700"><Users size={13} />{exchange.participants.length} <DeepLText text={"participants"} /></span>
+        <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-600">{Math.round(exchange.match?.compatibility_score || 0)}<DeepLText text={"% match"} /></span>
       </div>
       <div className="mt-5 flex flex-wrap gap-2">
         <button
@@ -1479,12 +1512,12 @@ function WorkspaceCard({
           onClick={() => navigate(`/exchange/workspace/${exchange.id}`)}
           className="flex-1 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
         >
-          {exchange.status === "accepted"
+          <DeepLText text={exchange.status === "accepted"
             ? "Open Exchange"
-            : "Open Workspace"}
+            : "Open Workspace"} />
         </button>
-        {exchange.status === "accepted" && <button type="button" onClick={onStart} disabled={loading} className="flex-1 rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-800 disabled:opacity-50">{loading ? "Starting..." : "Start Collaboration"}</button>}
-        {exchange.status === "active" && <button type="button" onClick={onComplete} disabled={loading} className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-50">{loading ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}Complete</button>}
+        {exchange.status === "accepted" && <button type="button" onClick={onStart} disabled={loading} className="flex-1 rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-800 disabled:opacity-50"><DeepLText text={loading ? "Starting..." : "Start Collaboration"} /></button>}
+        {exchange.status === "active" && <button type="button" onClick={onComplete} disabled={loading} className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-50">{loading ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}<DeepLText text={"Complete"} /></button>}
       </div>
     </div>
   );
@@ -1496,16 +1529,16 @@ function WorkspaceModal({ exchange, loading, onClose, onAccept, onNegotiate, onR
       <div className="flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
         <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-5">
           <div className="min-w-0">
-            <p className="text-xs font-bold uppercase tracking-wide text-blue-600">Exchange Workspace</p>
+            <p className="text-xs font-bold uppercase tracking-wide text-blue-600"><DeepLText text='Exchange Workspace' /></p>
             <h2 className="mt-1 truncate text-xl font-bold text-slate-950 sm:text-2xl">{exchange.title}</h2>
-            <div className="mt-2 flex flex-wrap gap-2"><StatusBadge status={exchange.status} /><span className="rounded-full bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700">{Math.round(exchange.match?.compatibility_score || 0)}% compatibility</span></div>
+            <div className="mt-2 flex flex-wrap gap-2"><StatusBadge status={exchange.status} /><span className="rounded-full bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700">{Math.round(exchange.match?.compatibility_score || 0)}<DeepLText text={"% compatibility"} /></span></div>
           </div>
           <button type="button" onClick={onClose} className="rounded-xl p-2 text-slate-500 hover:bg-slate-100"><X size={21} /></button>
         </div>
 
         <div className="overflow-y-auto p-6">
           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-            <div className="flex items-center gap-2"><Users size={19} className="text-blue-700" /><h3 className="font-bold text-slate-950">Participants</h3></div>
+            <div className="flex items-center gap-2"><Users size={19} className="text-blue-700" /><h3 className="font-bold text-slate-950"><DeepLText text='Participants' /></h3></div>
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
               <Participant name="You" label="Your role" />
               <Participant name={exchange.otherDeveloper?.full_name || "Developer"} label="Exchange partner" username={exchange.otherDeveloper?.username} />
@@ -1513,14 +1546,14 @@ function WorkspaceModal({ exchange, loading, onClose, onAccept, onNegotiate, onR
           </div>
 
           <div className="mt-5 rounded-2xl border border-slate-200 p-5">
-            <h3 className="font-bold text-slate-950">Exchange Objective</h3>
+            <h3 className="font-bold text-slate-950"><DeepLText text='Exchange Objective' /></h3>
             <p className="mt-3 text-sm leading-7 text-slate-600">{exchange.description || exchange.match?.explanation || "No additional description was provided."}</p>
           </div>
 
-          {exchange.match?.explanation && <div className="mt-5 rounded-2xl border border-blue-100 bg-blue-50 p-5"><h3 className="font-bold text-blue-950">Why this match?</h3><p className="mt-2 text-sm leading-6 text-blue-900">{exchange.match.explanation}</p></div>}
+          {exchange.match?.explanation && <div className="mt-5 rounded-2xl border border-blue-100 bg-blue-50 p-5"><h3 className="font-bold text-blue-950"><DeepLText text='Why this match?' /></h3><p className="mt-2 text-sm leading-6 text-blue-900">{exchange.match.explanation}</p></div>}
 
           <div className="mt-5 rounded-2xl border border-slate-200 p-5">
-            <h3 className="font-bold text-slate-950">Exchange Progress</h3>
+            <h3 className="font-bold text-slate-950"><DeepLText text='Exchange Progress' /></h3>
             <div className="mt-5 space-y-4">
               <Timeline label="Request sent" active completed />
               <Timeline label="Negotiating" active={["negotiating", "accepted", "active", "completed"].includes(exchange.status)} completed={["accepted", "active", "completed"].includes(exchange.status)} />
@@ -1538,12 +1571,12 @@ function WorkspaceModal({ exchange, loading, onClose, onAccept, onNegotiate, onR
         </div>
 
         <div className="flex flex-wrap gap-3 border-t border-slate-100 bg-slate-50 px-6 py-4">
-          {exchange.status === "pending" && <><button type="button" onClick={onReject} disabled={loading} className="flex-1 rounded-xl border border-red-200 bg-white px-4 py-3 text-sm font-semibold text-red-700 hover:bg-red-50">Reject</button><button type="button" onClick={onNegotiate} disabled={loading} className="flex-1 rounded-xl border border-blue-200 bg-white px-4 py-3 text-sm font-semibold text-blue-700 hover:bg-blue-50">Negotiate</button><button type="button" onClick={onAccept} disabled={loading} className="flex-1 rounded-xl bg-blue-700 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-800">Accept Exchange</button></>}
-          {exchange.status === "negotiating" && <button type="button" onClick={onAccept} disabled={loading} className="flex-1 rounded-xl bg-blue-700 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-800">Accept Exchange</button>}
-          {exchange.status === "accepted" && <button type="button" onClick={onStart} disabled={loading} className="flex-1 rounded-xl bg-blue-700 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-800">Start Collaboration</button>}
-          {exchange.status === "active" && <button type="button" onClick={onComplete} disabled={loading} className="flex-1 rounded-xl bg-emerald-700 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-800">Mark Exchange Completed</button>}
-          {exchange.status === "completed" && <div className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700"><CheckCircle2 size={18} />Exchange Completed</div>}
-          {exchange.status === "cancelled" && <div className="flex w-full items-center justify-center gap-2 rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700"><XCircle size={18} />Exchange Cancelled</div>}
+          {exchange.status === "pending" && <><button type="button" onClick={onReject} disabled={loading} className="flex-1 rounded-xl border border-red-200 bg-white px-4 py-3 text-sm font-semibold text-red-700 hover:bg-red-50"><DeepLText text='Reject' /></button><button type="button" onClick={onNegotiate} disabled={loading} className="flex-1 rounded-xl border border-blue-200 bg-white px-4 py-3 text-sm font-semibold text-blue-700 hover:bg-blue-50"><DeepLText text='Negotiate' /></button><button type="button" onClick={onAccept} disabled={loading} className="flex-1 rounded-xl bg-blue-700 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-800"><DeepLText text='Accept Exchange' /></button></>}
+          {exchange.status === "negotiating" && <button type="button" onClick={onAccept} disabled={loading} className="flex-1 rounded-xl bg-blue-700 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-800"><DeepLText text='Accept Exchange' /></button>}
+          {exchange.status === "accepted" && <button type="button" onClick={onStart} disabled={loading} className="flex-1 rounded-xl bg-blue-700 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-800"><DeepLText text='Start Collaboration' /></button>}
+          {exchange.status === "active" && <button type="button" onClick={onComplete} disabled={loading} className="flex-1 rounded-xl bg-emerald-700 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-800"><DeepLText text='Mark Exchange Completed' /></button>}
+          {exchange.status === "completed" && <div className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700"><CheckCircle2 size={18} /><DeepLText text='Exchange Completed' /></div>}
+          {exchange.status === "cancelled" && <div className="flex w-full items-center justify-center gap-2 rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700"><XCircle size={18} /><DeepLText text='Exchange Cancelled' /></div>}
         </div>
       </div>
     </div>
@@ -1556,20 +1589,20 @@ function Avatar({ profile }: { profile: Profile | null }) {
 }
 
 function Participant({ name, label, username }: { name: string; label: string; username?: string | null }) {
-  return <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4"><div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 font-bold text-blue-700">{name.charAt(0).toUpperCase()}</div><div className="min-w-0"><p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{label}</p><p className="truncate font-semibold text-slate-900">{name}</p>{username && <p className="truncate text-xs text-slate-500">@{username}</p>}</div></div>;
+  return <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4"><div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 font-bold text-blue-700">{name.charAt(0).toUpperCase()}</div><div className="min-w-0"><p className="text-xs font-semibold uppercase tracking-wide text-slate-400"><DeepLText text={label} /></p><p className="truncate font-semibold text-slate-900">{name}</p>{username && <p className="truncate text-xs text-slate-500">@{username}</p>}</div></div>;
 }
 
 function Timeline({ label, active, completed }: { label: string; active: boolean; completed: boolean }) {
-  return <div className="flex items-center gap-3"><div className={`flex h-8 w-8 items-center justify-center rounded-full ${completed ? "bg-emerald-600 text-white" : active ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-400"}`}>{completed ? <CheckCircle2 size={17} /> : <Clock3 size={16} />}</div><span className={`text-sm font-medium ${completed ? "text-emerald-700" : active ? "text-blue-700" : "text-slate-400"}`}>{label}</span></div>;
+  return <div className="flex items-center gap-3"><div className={`flex h-8 w-8 items-center justify-center rounded-full ${completed ? "bg-emerald-600 text-white" : active ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-400"}`}>{completed ? <CheckCircle2 size={17} /> : <Clock3 size={16} />}</div><span className={`text-sm font-medium ${completed ? "text-emerald-700" : active ? "text-blue-700" : "text-slate-400"}`}><DeepLText text={label} /></span></div>;
 }
 
 function Feature({ icon, title, text }: { icon: ReactNode; title: string; text: string }) {
-  return <div className="rounded-xl border border-slate-200 bg-slate-50 p-4"><div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white text-blue-700 shadow-sm">{icon}</div><h4 className="mt-3 text-sm font-bold text-slate-950">{title}</h4><p className="mt-1 text-xs leading-5 text-slate-500">{text}</p></div>;
+  return <div className="rounded-xl border border-slate-200 bg-slate-50 p-4"><div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white text-blue-700 shadow-sm">{icon}</div><h4 className="mt-3 text-sm font-bold text-slate-950"><DeepLText text={title} /></h4><p className="mt-1 text-xs leading-5 text-slate-500"><DeepLText text={text} /></p></div>;
 }
 
 function StatusBadge({ status }: { status: string }) {
   const styles: Record<string, string> = { pending: "bg-orange-100 text-orange-700", negotiating: "bg-purple-100 text-purple-700", accepted: "bg-blue-100 text-blue-700", active: "bg-emerald-100 text-emerald-700", completed: "bg-green-100 text-green-700", cancelled: "bg-red-100 text-red-700" };
-  return <span className={`rounded-full px-3 py-1.5 text-xs font-bold capitalize ${styles[status] || "bg-slate-100 text-slate-700"}`}>{status}</span>;
+  return <span className={`rounded-full px-3 py-1.5 text-xs font-bold capitalize ${styles[status] || "bg-slate-100 text-slate-700"}`}><DeepLText text={status} /></span>;
 }
 
 export default Exchange;

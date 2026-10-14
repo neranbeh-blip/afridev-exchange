@@ -13,6 +13,7 @@ import {
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
+import DeepLText from "../../components/layout/DeepLText";
 
 type Skill = {
   id: string;
@@ -207,6 +208,8 @@ function ProblemDetails() {
         type: "problem_interest",
         title: "New developer interested",
         message: `A developer is interested in helping with "${problem.title}".`,
+        translation_key: "problem_interest_new",
+        translation_params: { title: problem.title },
         link: `/problems/${problem.id}`,
       });
 
@@ -259,6 +262,8 @@ function ProblemDetails() {
             decision === "accepted"
               ? `You were accepted to help with "${problem.title}".`
               : `The creator declined your interest in "${problem.title}".`,
+          translation_key: decision === "accepted" ? "problem_interest_accepted" : "problem_interest_rejected",
+          translation_params: { title: problem.title },
           link: `/problems/${problem.id}`,
         });
       }
@@ -336,14 +341,14 @@ function ProblemDetails() {
       <div className="mx-auto max-w-3xl px-4 py-12 text-center">
         <AlertCircle className="mx-auto text-slate-300" size={40} />
         <h1 className="mt-4 text-xl font-bold text-slate-900">
-          Problem not found
+          <DeepLText text={"Problem not found"} />
         </h1>
         <Link
           to="/problems"
           className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-blue-700"
         >
           <ArrowLeft size={16} />
-          Back to Problems
+          <DeepLText text={"Back to Problems"} />
         </Link>
       </div>
     );
@@ -367,7 +372,7 @@ function ProblemDetails() {
         className="inline-flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-blue-700"
       >
         <ArrowLeft size={16} />
-        Back to Problems
+        <DeepLText text={"Back to Problems"} />
       </Link>
 
       {error && (
@@ -396,7 +401,7 @@ function ProblemDetails() {
 
               {problem.converted_project_id && (
                 <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
-                  Converted to project
+                  <DeepLText text={"Converted to project"} />
                 </span>
               )}
             </div>
@@ -430,9 +435,9 @@ function ProblemDetails() {
                 <Sparkles size={19} />
               </div>
               <div>
-                <h2 className="font-bold text-slate-950">Required Skills</h2>
+                <h2 className="font-bold text-slate-950"><DeepLText text={"Required Skills"} /></h2>
                 <p className="text-xs text-slate-500">
-                  Capabilities needed to turn this problem into a project.
+                  <DeepLText text={"Capabilities needed to turn this problem into a project."} />
                 </p>
               </div>
             </div>
@@ -455,11 +460,10 @@ function ProblemDetails() {
                 <MessageSquare className="mt-0.5 text-blue-700" size={20} />
                 <div className="flex-1">
                   <h2 className="font-bold text-slate-950">
-                    Can you help solve this?
+                    <DeepLText text={"Can you help solve this?"} />
                   </h2>
                   <p className="mt-1 text-sm leading-6 text-slate-600">
-                    Express interest and tell the creator how you can
-                    contribute.
+                    <DeepLText text={"Express interest and tell the creator how you can\n                    contribute."} />
                   </p>
 
                   {myInterest ? (
@@ -494,14 +498,14 @@ function ProblemDetails() {
                           className="inline-flex items-center gap-2 rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-800 disabled:opacity-60"
                         >
                           <Send size={15} />
-                          {working ? "Sending..." : "Send Interest"}
+                          {working ? <DeepLText text={"Sending..."} /> : "Send Interest"}
                         </button>
                         <button
                           type="button"
                           onClick={() => setShowInterestForm(false)}
                           className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600"
                         >
-                          Cancel
+                          <DeepLText text={"Cancel"} />
                         </button>
                       </div>
                     </div>
@@ -511,7 +515,7 @@ function ProblemDetails() {
                       onClick={() => setShowInterestForm(true)}
                       className="mt-4 rounded-xl bg-blue-700 px-5 py-3 text-sm font-semibold text-white hover:bg-blue-800"
                     >
-                      I'm Interested
+                      <DeepLText text={"I'm Interested"} />
                     </button>
                   )}
                 </div>
@@ -524,10 +528,10 @@ function ProblemDetails() {
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <h2 className="font-bold text-slate-950">
-                    Developer Interest
+                    <DeepLText text={"Developer Interest"} />
                   </h2>
                   <p className="mt-1 text-xs text-slate-500">
-                    Review developers who want to help solve your problem.
+                    <DeepLText text={"Review developers who want to help solve your problem."} />
                   </p>
                 </div>
                 <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
@@ -539,7 +543,7 @@ function ProblemDetails() {
                 <div className="mt-5 rounded-xl border border-dashed border-slate-200 p-6 text-center">
                   <Users className="mx-auto text-slate-300" size={30} />
                   <p className="mt-3 text-sm font-semibold text-slate-600">
-                    No developers have expressed interest yet.
+                    <DeepLText text={"No developers have expressed interest yet."} />
                   </p>
                 </div>
               ) : (
@@ -592,7 +596,7 @@ function ProblemDetails() {
                           to={`/developer/${interest.developer_id}`}
                           className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
                         >
-                          View Passport
+                          <DeepLText text={"View Passport"} />
                           <ExternalLink size={13} />
                         </Link>
 
@@ -610,7 +614,7 @@ function ProblemDetails() {
                               className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
                             >
                               <CheckCircle2 size={14} />
-                              Accept
+                              <DeepLText text={"Accept"} />
                             </button>
 
                             <button
@@ -624,7 +628,7 @@ function ProblemDetails() {
                               disabled={working}
                               className="rounded-lg border border-red-200 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:opacity-60"
                             >
-                              Reject
+                              <DeepLText text={"Reject"} />
                             </button>
                           </>
                         )}
@@ -640,7 +644,7 @@ function ProblemDetails() {
         <aside className="space-y-6">
           <section className="rounded-2xl border border-slate-200 bg-white p-5">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-              Problem Creator
+              <DeepLText text={"Problem Creator"} />
             </p>
 
             <div className="mt-4 flex items-center gap-3">
@@ -678,14 +682,14 @@ function ProblemDetails() {
               to={`/developer/${problem.creator_id}`}
               className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
             >
-              View Passport
+              <DeepLText text={"View Passport"} />
               <ExternalLink size={15} />
             </Link>
           </section>
 
           <section className="rounded-2xl border border-slate-200 bg-white p-5">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-              Collaboration
+              <DeepLText text={"Collaboration"} />
             </p>
 
             <div className="mt-4 space-y-3">
@@ -709,7 +713,7 @@ function ProblemDetails() {
                 className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-blue-700 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-800 disabled:opacity-60"
               >
                 <Sparkles size={16} />
-                {working ? "Creating Project..." : "Convert to Project"}
+                {working ? <DeepLText text={"Creating Project..."} /> : "Convert to Project"}
               </button>
             )}
 
@@ -718,7 +722,7 @@ function ProblemDetails() {
                 to={`/projects/${problem.converted_project_id}`}
                 className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-700"
               >
-                Open Project
+                <DeepLText text={"Open Project"} />
                 <ArrowLeft className="rotate-180" size={16} />
               </Link>
             )}

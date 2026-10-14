@@ -34,9 +34,7 @@ import Settings from "./pages/settings/Settings";
 function App() {
   return (
     <Routes>
-      {/* =====================================================
-          PUBLIC ROUTES
-      ====================================================== */}
+      {/* PUBLIC ROUTES */}
 
       <Route path="/" element={<Landing />} />
 
@@ -50,10 +48,7 @@ function App() {
         element={<PublicPassport />}
       />
 
-      {/* =====================================================
-          PROTECTED APPLICATION
-      ====================================================== */}
-
+      {/* PROTECTED APPLICATION */}
       <Route
         element={
           <ProtectedRoute>
@@ -131,8 +126,15 @@ function App() {
           element={<Notifications />}
         />
 
+        {/* Existing Evidence Verification route */}
         <Route
           path="/admin/evidence"
+          element={<EvidenceVerification />}
+        />
+
+        {/* FIX: Community Verification navigation route */}
+        <Route
+          path="/community-verification"
           element={<EvidenceVerification />}
         />
 
@@ -142,10 +144,7 @@ function App() {
         />
       </Route>
 
-      {/* =====================================================
-          UNKNOWN ROUTES
-      ====================================================== */}
-
+      {/* UNKNOWN ROUTES */}
       <Route
         path="*"
         element={<Navigate to="/" replace />}

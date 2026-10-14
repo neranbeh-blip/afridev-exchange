@@ -1,0 +1,64 @@
+/* AfriDev Exchange — lightweight premium motion layer.
+   No dependencies; respects the user's reduced-motion preference. */
+
+:root {
+  --afridev-motion-fast: 160ms;
+  --afridev-motion-normal: 240ms;
+  --afridev-motion-ease: cubic-bezier(0.2, 0.75, 0.25, 1);
+}
+
+@keyframes afridev-page-enter {
+  from { opacity: 0; transform: translate3d(0, 8px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+@keyframes afridev-soft-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
+  50% { box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.07); }
+}
+
+/* Route-level entrance animation without changing the React tree. */
+main > * {
+  animation: afridev-page-enter 360ms var(--afridev-motion-ease) both;
+}
+
+/* Refined interactive feedback for existing controls and links. */
+main a,
+main button,
+header button,
+aside nav a {
+  transition-property: color, background-color, border-color, box-shadow, opacity, transform;
+  transition-duration: var(--afridev-motion-normal);
+  transition-timing-function: var(--afridev-motion-ease);
+}
+
+main button:active,
+header button:active {
+  transform: scale(0.985);
+}
+
+main a:focus-visible,
+main button:focus-visible,
+header button:focus-visible,
+aside nav a:focus-visible {
+  outline: 2px solid rgba(59, 130, 246, 0.9);
+  outline-offset: 3px;
+}
+
+/* Subtle lift only for clearly card-like bordered surfaces. */
+main [class*="rounded-2xl"][class*="border"]:hover,
+main [class*="rounded-xl"][class*="border"]:hover {
+  border-color: rgba(96, 165, 250, 0.38);
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.055);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}

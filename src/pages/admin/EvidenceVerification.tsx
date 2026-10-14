@@ -657,15 +657,14 @@ function EvidenceVerification() {
                       </a>
                     )}
 
-                    {item.verification_status === "pending" &&
-                      !isOwnEvidence && (
+                    {!isOwnEvidence && (
                         <button
                           type="button"
                           onClick={() => openReview(item)}
                           className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-3.5 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
                         >
                           <ShieldCheck className="h-4 w-4" />
-                          Verify
+                          {item.verification_status === "pending" ? "Verify" : "Add review"}
                         </button>
                       )}
 

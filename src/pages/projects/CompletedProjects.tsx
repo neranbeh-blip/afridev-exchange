@@ -12,6 +12,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { supabase } from "../../lib/supabase";
+import DeepLText from "../../components/layout/DeepLText";
 
 type Profile = {
   id: string;
@@ -56,7 +57,26 @@ type CommentRow = {
   content: string;
   created_at: string;
   developer: Profile | null;
+  likes: number;
+  likedByMe: boolean;
+  replies: CommentReply[];
 };
+
+type CommentReply = {
+  id: string;
+  comment_id: string;
+  developer_id: string;
+  content: string;
+  created_at: string;
+  developer: Profile | null;
+};
+
+function getCommentCount(project: Project) {
+  return project.comments.reduce(
+    (total, comment) => total + 1 + comment.replies.length,
+    0
+  );
+}
 
 function CompletedProjects() {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -66,12 +86,11 @@ function CompletedProjects() {
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [commentText, setCommentText] = useState("");
   const [commenting, setCommenting] = useState(false);
+  const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
+  const [replyingTo, setReplyingTo] = useState<string | null>(null);
+  const [commentLikeBusy, setCommentLikeBusy] = useState<string | null>(null);
   const [likingId, setLikingId] = useState<string | null>(null);
   const [deletingCommentId, setDeletingCommentId] = useState<string | null>(null);
-  const [mediaUrl, setMediaUrl] = useState("");
-  const [mediaType, setMediaType] = useState<"image" | "video">("image");
-  const [savingMedia, setSavingMedia] = useState(false);
-  const [deletingProjectId, setDeletingProjectId] = useState<string | null>(null);
 
   async function loadCompletedProjects() {
     try {
@@ -151,6 +170,38 @@ function CompletedProjects() {
 
       if (commentProfilesError) throw commentProfilesError;
 
+      const commentIds = (commentRows ?? []).map((comment) => comment.id);
+      const [{ data: commentLikeRows, error: commentLikesError }, { data: replyRows, error: repliesError }] =
+        commentIds.length
+          ? await Promise.all([
+              supabase.from("project_comment_likes").select("id, comment_id, user_id").in("comment_id", commentIds),
+              supabase.from("project_comment_replies").select("id, comment_id, developer_id, content, created_at").in("comment_id", commentIds).order("created_at", { ascending: true }),
+            ])
+          : [{ data: [], error: null }, { data: [], error: null }];
+
+      if (commentLikesError) throw commentLikesError;
+      if (repliesError) throw repliesError;
+
+      const replyDeveloperIds = Array.from(new Set((replyRows ?? []).map((reply) => reply.developer_id)));
+      const { data: replyDevelopers, error: replyProfilesError } = replyDeveloperIds.length
+        ? await supabase.from("profiles").select("id, full_name, username, avatar_url").in("id", replyDeveloperIds)
+        : { data: [], error: null };
+      if (replyProfilesError) throw replyProfilesError;
+
+      const replyProfileMap = new Map((replyDevelopers ?? []).map((profile) => [profile.id, profile as Profile]));
+      const likesByComment = new Map<string, Array<{ user_id: string }>>();
+      (commentLikeRows ?? []).forEach((like) => {
+        const list = likesByComment.get(like.comment_id) ?? [];
+        list.push(like);
+        likesByComment.set(like.comment_id, list);
+      });
+      const repliesByComment = new Map<string, CommentReply[]>();
+      (replyRows ?? []).forEach((reply) => {
+        const list = repliesByComment.get(reply.comment_id) ?? [];
+        list.push({ ...reply, developer: replyProfileMap.get(reply.developer_id) ?? null } as CommentReply);
+        repliesByComment.set(reply.comment_id, list);
+      });
+
       const ownerMap = new Map(
         (owners ?? []).map((owner) => [owner.id, owner as Profile])
       );
@@ -181,6 +232,9 @@ function CompletedProjects() {
         list.push({
           ...(comment as CommentRow),
           developer: commentDeveloperMap.get(comment.developer_id) ?? null,
+          likes: (likesByComment.get(comment.id) ?? []).length,
+          likedByMe: Boolean(user?.id && (likesByComment.get(comment.id) ?? []).some((like) => like.user_id === user.id)),
+          replies: repliesByComment.get(comment.id) ?? [],
         });
         commentsMap.set(comment.project_id, list);
       });
@@ -229,55 +283,22 @@ function CompletedProjects() {
         { event: "*", schema: "public", table: "project_comments" },
         () => void loadCompletedProjects()
       )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "project_comment_likes" },
+        () => void loadCompletedProjects()
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "project_comment_replies" },
+        () => void loadCompletedProjects()
+      )
       .subscribe();
 
     return () => {
       void supabase.removeChannel(channel);
     };
   }, []);
-
-  async function deleteProject(project: Project) {
-    if (!currentUserId || project.owner_id !== currentUserId || deletingProjectId) {
-      return;
-    }
-
-    const confirmed = window.confirm(
-      `Delete "${project.title}" permanently? This completed project and its associated content may no longer be available. This cannot be undone.`
-    );
-    if (!confirmed) return;
-
-    try {
-      setDeletingProjectId(project.id);
-      setError(null);
-
-      const { data, error: deleteError } = await supabase
-        .from("projects")
-        .delete()
-        .eq("id", project.id)
-        .eq("owner_id", currentUserId)
-        .select("id")
-        .maybeSingle();
-
-      if (deleteError) throw deleteError;
-      if (!data) {
-        throw new Error(
-          "Project was not deleted. You must be the project owner, and your database delete policy must allow this action."
-        );
-      }
-
-      setProjects((current) => current.filter((item) => item.id !== project.id));
-      if (selectedProjectId === project.id) setSelectedProjectId(null);
-    } catch (err) {
-      console.error("Delete completed project error:", err);
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Unable to delete this completed project. Check your database permissions and related records."
-      );
-    } finally {
-      setDeletingProjectId(null);
-    }
-  }
 
   async function toggleLike(project: Project) {
     if (!currentUserId || likingId) return;
@@ -315,6 +336,8 @@ function CompletedProjects() {
             type: "project",
             title: "Project liked",
             message: `Someone liked your completed project "${project.title}".`,
+            translation_key: "project_liked",
+            translation_params: { title: project.title },
             link: "/completed-projects",
           });
         }
@@ -350,6 +373,8 @@ function CompletedProjects() {
           type: "project",
           title: "New project comment",
           message: `Someone commented on your completed project "${project.title}".`,
+          translation_key: "project_comment",
+          translation_params: { title: project.title },
           link: "/completed-projects",
         });
       }
@@ -366,66 +391,46 @@ function CompletedProjects() {
     }
   }
 
-  async function addMedia(project: Project) {
-    const url = mediaUrl.trim();
-    if (!currentUserId || project.owner_id !== currentUserId || !url || savingMedia) {
-      return;
-    }
-
+  async function toggleCommentLike(comment: CommentRow) {
+    if (!currentUserId || commentLikeBusy) return;
+    setCommentLikeBusy(comment.id);
     try {
-      setSavingMedia(true);
-      setError(null);
-
-      const { data, error: insertError } = await supabase
-        .from("project_media")
-        .insert({
-          project_id: project.id,
-          media_url: url,
-          media_type: mediaType,
-        })
-        .select("id, project_id, media_url, media_type, created_at")
-        .single();
-
-      if (insertError) throw insertError;
-
-      setProjects((current) =>
-        current.map((item) =>
-          item.id === project.id
-            ? { ...item, media: [...item.media, data as Media] }
-            : item
-        )
-      );
-      setMediaUrl("");
+      if (comment.likedByMe) {
+        const { error: deleteError } = await supabase
+          .from("project_comment_likes")
+          .delete()
+          .eq("comment_id", comment.id)
+          .eq("user_id", currentUserId);
+        if (deleteError) throw deleteError;
+      } else {
+        const { error: insertError } = await supabase
+          .from("project_comment_likes")
+          .insert({ comment_id: comment.id, user_id: currentUserId });
+        if (insertError) throw insertError;
+      }
+      await loadCompletedProjects();
     } catch (err) {
-      console.error("Add project media error:", err);
-      setError(err instanceof Error ? err.message : "Unable to add media.");
+      setError(err instanceof Error ? err.message : "Unable to update comment like.");
     } finally {
-      setSavingMedia(false);
+      setCommentLikeBusy(null);
     }
   }
 
-  async function removeMedia(projectId: string, mediaId: string) {
+  async function submitReply(comment: CommentRow) {
+    const content = (replyDrafts[comment.id] ?? "").trim();
+    if (!currentUserId || !content || replyingTo) return;
+    setReplyingTo(comment.id);
     try {
-      const { error: deleteError } = await supabase
-        .from("project_media")
-        .delete()
-        .eq("id", mediaId);
-
-      if (deleteError) throw deleteError;
-
-      setProjects((current) =>
-        current.map((project) =>
-          project.id === projectId
-            ? {
-                ...project,
-                media: project.media.filter((media) => media.id !== mediaId),
-              }
-            : project
-        )
-      );
+      const { error: replyError } = await supabase
+        .from("project_comment_replies")
+        .insert({ comment_id: comment.id, developer_id: currentUserId, content });
+      if (replyError) throw replyError;
+      setReplyDrafts((current) => ({ ...current, [comment.id]: "" }));
+      await loadCompletedProjects();
     } catch (err) {
-      console.error("Remove project media error:", err);
-      setError("Unable to remove media.");
+      setError(err instanceof Error ? err.message : "Unable to post reply.");
+    } finally {
+      setReplyingTo(null);
     }
   }
 
@@ -470,13 +475,12 @@ function CompletedProjects() {
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-sm font-semibold text-blue-600">AFRIDEV SHOWCASE</p>
+          <p className="text-sm font-semibold text-blue-600"><DeepLText text="AFRIDEV SHOWCASE" /></p>
           <h1 className="mt-1 text-3xl font-bold text-slate-950">
-            Completed Projects
+            <DeepLText text="Completed Projects" />
           </h1>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
-            Discover finished projects built by African developers. Like the work,
-            leave feedback, and explore the final result.
+            <DeepLText text="Discover finished projects built by African developers. Like the work,\n            leave feedback, and explore the final result." />
           </p>
         </div>
 
@@ -485,7 +489,7 @@ function CompletedProjects() {
           className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
         >
           <FolderKanban size={17} />
-          Active Projects
+          <DeepLText text="Active Projects" />
         </Link>
       </div>
 
@@ -508,10 +512,10 @@ function CompletedProjects() {
         <div className="mt-8 rounded-2xl border border-dashed border-slate-200 bg-white p-12 text-center">
           <FolderKanban className="mx-auto h-10 w-10 text-slate-300" />
           <h2 className="mt-4 text-lg font-bold text-slate-900">
-            No completed projects yet
+            <DeepLText text="No completed projects yet" />
           </h2>
           <p className="mt-1 text-sm text-slate-500">
-            Finished public projects will appear here.
+            <DeepLText text="Finished public projects will appear here." />
           </p>
         </div>
       ) : (
@@ -541,7 +545,7 @@ function CompletedProjects() {
                   ) : (
                     <div className="flex h-full flex-col items-center justify-center text-slate-400">
                       <ImageIcon size={34} />
-                      <span className="mt-2 text-xs">No project image</span>
+                      <span className="mt-2 text-xs"><DeepLText text="No project image" /></span>
                     </div>
                   )}
 
@@ -564,27 +568,9 @@ function CompletedProjects() {
                           "AfriDev Developer"}
                       </p>
                     </div>
-                    <div className="flex shrink-0 items-center gap-2">
-                      <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
-                        Completed
-                      </span>
-                      {project.owner_id === currentUserId && (
-                        <button
-                          type="button"
-                          onClick={() => void deleteProject(project)}
-                          disabled={deletingProjectId === project.id}
-                          className="inline-flex items-center justify-center rounded-lg border border-red-200 p-2 text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
-                          title="Delete completed project"
-                          aria-label={`Delete completed project ${project.title}`}
-                        >
-                          {deletingProjectId === project.id ? (
-                            <Loader2 size={15} className="animate-spin" />
-                          ) : (
-                            <Trash2 size={15} />
-                          )}
-                        </button>
-                      )}
-                    </div>
+                    <span className="shrink-0 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
+                      <DeepLText text="Completed" />
+                    </span>
                   </div>
 
                   <p className="mt-4 line-clamp-3 text-sm leading-6 text-slate-600">
@@ -599,7 +585,7 @@ function CompletedProjects() {
                         rel="noreferrer"
                         className="inline-flex items-center gap-1.5 rounded-xl bg-blue-700 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-800"
                       >
-                        View Result
+                        <DeepLText text="View Result" />
                         <ExternalLink size={13} />
                       </a>
                     )}
@@ -610,7 +596,7 @@ function CompletedProjects() {
                         rel="noreferrer"
                         className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
                       >
-                        Repository
+                        <DeepLText text="Repository" />
                         <ExternalLink size={13} />
                       </a>
                     )}
@@ -620,7 +606,7 @@ function CompletedProjects() {
                       className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
                     >
                       <MessageCircle size={13} />
-                      Comments ({project.comments.length})
+                      <DeepLText text="Comments" /> ({getCommentCount(project)})
                     </button>
                   </div>
 
@@ -648,7 +634,7 @@ function CompletedProjects() {
 
                     <span className="inline-flex items-center gap-2 text-sm text-slate-500">
                       <MessageCircle size={17} />
-                      {project.comments.length}
+                      {getCommentCount(project)}
                     </span>
                   </div>
                 </div>
@@ -664,7 +650,7 @@ function CompletedProjects() {
             <div className="flex items-start justify-between gap-4 border-b border-slate-100 p-5 sm:p-6">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">
-                  Completed Project
+                  <DeepLText text="Completed Project" />
                 </p>
                 <h2 className="mt-1 text-xl font-bold text-slate-950">
                   {selectedProject.title}
@@ -675,7 +661,7 @@ function CompletedProjects() {
                 onClick={() => setSelectedProjectId(null)}
                 className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
               >
-                <span className="sr-only">Close</span>
+                <span className="sr-only"><DeepLText text="Close" /></span>
                 ×
               </button>
             </div>
@@ -715,7 +701,7 @@ function CompletedProjects() {
                     rel="noreferrer"
                     className="inline-flex items-center gap-2 rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-800"
                   >
-                    View Result
+                    <DeepLText text="View Result" />
                     <ExternalLink size={15} />
                   </a>
                 )}
@@ -726,87 +712,20 @@ function CompletedProjects() {
                     rel="noreferrer"
                     className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
                   >
-                    Repository
+                    <DeepLText text="Repository" />
                     <ExternalLink size={15} />
                   </a>
                 )}
               </div>
 
-              {selectedProject.owner_id === currentUserId && (
-                <div className="mt-8 rounded-2xl border border-blue-100 bg-blue-50/50 p-4">
-                  <div>
-                    <h3 className="font-bold text-slate-950">Project media</h3>
-                    <p className="mt-1 text-xs leading-5 text-slate-500">
-                      Add image or video URLs for the completed-project showcase.
-                    </p>
-                  </div>
-
-                  <div className="mt-4 grid gap-2 sm:grid-cols-[1fr_130px_auto]">
-                    <input
-                      value={mediaUrl}
-                      onChange={(event) => setMediaUrl(event.target.value)}
-                      placeholder="https://..."
-                      type="url"
-                      className="min-w-0 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
-                    />
-                    <select
-                      value={mediaType}
-                      onChange={(event) =>
-                        setMediaType(event.target.value as "image" | "video")
-                      }
-                      className="rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-medium text-slate-700 outline-none"
-                    >
-                      <option value="image">Image</option>
-                      <option value="video">Video</option>
-                    </select>
-                    <button
-                      type="button"
-                      onClick={() => void addMedia(selectedProject)}
-                      disabled={!mediaUrl.trim() || savingMedia}
-                      className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-700 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-800 disabled:opacity-50"
-                    >
-                      {savingMedia && <Loader2 size={15} className="animate-spin" />}
-                      Add
-                    </button>
-                  </div>
-
-                  {selectedProject.media.length > 0 && (
-                    <div className="mt-4 space-y-2">
-                      {selectedProject.media.map((media) => (
-                        <div
-                          key={media.id}
-                          className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2"
-                        >
-                          <div className="min-w-0">
-                            <p className="truncate text-xs font-medium text-slate-700">
-                              {media.media_url}
-                            </p>
-                            <p className="text-[11px] capitalize text-slate-400">
-                              {media.media_type}
-                            </p>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => void removeMedia(selectedProject.id, media.id)}
-                            className="shrink-0 rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-600"
-                            title="Remove media"
-                          >
-                            <Trash2 size={15} />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
 
               <div className="mt-8 border-t border-slate-100 pt-6">
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-bold text-slate-950">
-                    Comments
+                    <DeepLText text="Comments" />
                   </h3>
                   <span className="text-xs text-slate-500">
-                    {selectedProject.comments.length}
+                    {getCommentCount(selectedProject)}
                   </span>
                 </div>
 
@@ -835,14 +754,14 @@ function CompletedProjects() {
                     ) : (
                       <Send size={16} />
                     )}
-                    Post
+                    <DeepLText text="Post" />
                   </button>
                 </form>
 
                 <div className="mt-5 space-y-3">
                   {selectedProject.comments.length === 0 ? (
                     <p className="rounded-xl bg-slate-50 p-5 text-center text-sm text-slate-500">
-                      No comments yet. Be the first to share feedback.
+                      <DeepLText text="No comments yet. Be the first to share feedback." />
                     </p>
                   ) : (
                     selectedProject.comments.map((comment) => {
@@ -889,6 +808,63 @@ function CompletedProjects() {
                           <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-600">
                             {comment.content}
                           </p>
+
+                          <div className="mt-3 flex flex-wrap items-center gap-3">
+                            <button
+                              type="button"
+                              onClick={() => void toggleCommentLike(comment)}
+                              disabled={!currentUserId || commentLikeBusy === comment.id}
+                              className={`inline-flex items-center gap-1.5 text-xs font-semibold ${comment.likedByMe ? "text-rose-600" : "text-slate-500 hover:text-rose-600"}`}
+                              aria-label={comment.likedByMe ? "Unlike comment" : "Like comment"}
+                            >
+                              <Heart size={14} fill={comment.likedByMe ? "currentColor" : "none"} />
+                              <DeepLText text="Like" /> {comment.likes > 0 ? `(${comment.likes})` : ""}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setReplyDrafts((current) => ({ ...current, [comment.id]: current[comment.id] ?? "" }))}
+                              className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-700 hover:text-blue-900"
+                            >
+                              <MessageCircle size={14} /> <DeepLText text="Reply" />
+                            </button>
+                          </div>
+
+                          {comment.replies.length > 0 && (
+                            <div className="mt-3 space-y-2 border-l-2 border-blue-100 pl-3">
+                              {comment.replies.map((reply) => (
+                                <div key={reply.id} className="rounded-lg bg-slate-50 p-3">
+                                  <p className="text-xs font-bold text-slate-800">
+                                    {reply.developer?.full_name || reply.developer?.username || "Developer"}
+                                  </p>
+                                  <p className="mt-1 whitespace-pre-wrap text-sm text-slate-600">{reply.content}</p>
+                                  <p className="mt-1 text-[10px] text-slate-400">{new Date(reply.created_at).toLocaleString()}</p>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          {replyDrafts[comment.id] !== undefined && (
+                            <form
+                              className="mt-3 flex gap-2"
+                              onSubmit={(event) => { event.preventDefault(); void submitReply(comment); }}
+                            >
+                              <input
+                                value={replyDrafts[comment.id] ?? ""}
+                                onChange={(event) => setReplyDrafts((current) => ({ ...current, [comment.id]: event.target.value.slice(0, 1000) }))}
+                                placeholder="Write a reply..."
+                                maxLength={1000}
+                                disabled={!currentUserId || replyingTo === comment.id}
+                                className="min-w-0 flex-1 rounded-lg border border-slate-200 px-3 py-2 text-xs outline-none focus:border-blue-400"
+                              />
+                              <button
+                                type="submit"
+                                disabled={!currentUserId || !(replyDrafts[comment.id] ?? "").trim() || replyingTo === comment.id}
+                                className="rounded-lg bg-blue-700 px-3 py-2 text-xs font-bold text-white disabled:opacity-50"
+                              >
+                                {replyingTo === comment.id ? "..." : <DeepLText text="Send" />}
+                              </button>
+                            </form>
+                          )}
                         </div>
                       );
                     })

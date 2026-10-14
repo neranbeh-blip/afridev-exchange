@@ -1,0 +1,108 @@
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap");
+@import "tailwindcss";
+
+:root {
+  font-family: "Plus Jakarta Sans", Inter, ui-sans-serif, system-ui, -apple-system,
+    BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #0f172a;
+  background: #f8fafc;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  font-family: inherit;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+.afridev-display {
+  font-family: "Plus Jakarta Sans", Inter, ui-sans-serif, system-ui, sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.035em;
+}
+
+::selection {
+  background: rgba(37, 99, 235, 0.18);
+  color: #0f172a;
+}
+
+
+/* AFRIDEV DASHBOARD MOTION V1 */
+/* Original lightweight CSS motion; no animation library is added. */
+.afridev-dashboard-motion .afridev-dashboard-hero {
+  animation: afridev-dashboard-enter 560ms cubic-bezier(.2,.7,.2,1) both;
+}
+
+.afridev-dashboard-motion .afridev-dashboard-hero img {
+  transform: scale(1.025);
+  animation: afridev-hero-image-settle 1100ms cubic-bezier(.2,.7,.2,1) both;
+}
+
+.afridev-dashboard-motion .afridev-dashboard-kpis .afridev-dashboard-kpi {
+  animation: afridev-dashboard-enter 480ms cubic-bezier(.2,.7,.2,1) both;
+  transition:
+    transform 200ms ease,
+    box-shadow 200ms ease,
+    border-color 200ms ease;
+}
+
+.afridev-dashboard-motion .afridev-dashboard-kpis .afridev-dashboard-kpi:nth-child(1) { animation-delay: 70ms; }
+.afridev-dashboard-motion .afridev-dashboard-kpis .afridev-dashboard-kpi:nth-child(2) { animation-delay: 130ms; }
+.afridev-dashboard-motion .afridev-dashboard-kpis .afridev-dashboard-kpi:nth-child(3) { animation-delay: 190ms; }
+.afridev-dashboard-motion .afridev-dashboard-kpis .afridev-dashboard-kpi:nth-child(4) { animation-delay: 250ms; }
+
+.afridev-dashboard-motion .afridev-dashboard-kpis .afridev-dashboard-kpi:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 16px 35px rgba(15, 23, 42, .09);
+}
+
+.afridev-dashboard-motion .afridev-dashboard-lower > section {
+  animation: afridev-dashboard-enter 520ms cubic-bezier(.2,.7,.2,1) both;
+  animation-delay: 180ms;
+}
+
+@keyframes afridev-dashboard-enter {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes afridev-hero-image-settle {
+  from { transform: scale(1.065); }
+  to { transform: scale(1.025); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .afridev-dashboard-motion .afridev-dashboard-hero,
+  .afridev-dashboard-motion .afridev-dashboard-hero img,
+  .afridev-dashboard-motion .afridev-dashboard-kpis .afridev-dashboard-kpi,
+  .afridev-dashboard-motion .afridev-dashboard-lower > section {
+    animation: none !important;
+  }
+
+  .afridev-dashboard-motion .afridev-dashboard-kpis .afridev-dashboard-kpi {
+    transition: none !important;
+  }
+}

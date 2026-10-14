@@ -11,6 +11,8 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { supabase } from "../../lib/supabase";
+import DeepLText from "../../components/layout/DeepLText";
+import { useDeepLTranslation } from "../../lib/useDeepLTranslation";
 
 type Profile = {
   id: string;
@@ -77,7 +79,9 @@ type DeveloperCard = Profile & {
 };
 
 function Discover() {
+  const { text: searchPlaceholder } = useDeepLTranslation("Search developers, skills, countries...");
   const [developers, setDevelopers] = useState<DeveloperCard[]>([]);
+  const [aiMatches, setAiMatches] = useState<AIMatch[]>([]);
   const [loading, setLoading] = useState(true);
   const [aiLoading, setAiLoading] = useState(true);
   const [aiError, setAiError] = useState<string | null>(null);
@@ -533,43 +537,10 @@ function Discover() {
         }
       }
 
-      setDevelopers((current) =>
-        current.map((developer) => {
-          const match = bestByDeveloper.get(
-            developer.id
-          );
-
-          if (!match) {
-            return {
-              ...developer,
-              aiExplanation: null,
-              aiExchangeValue: null,
-              aiMatch: null,
-            };
-          }
-
-          return {
-            ...developer,
-            compatibilityScore:
-              match.compatibility_score,
-            matchingOfferSkills:
-              match.direction ===
-              "my_offer_matches_their_need"
-                ? match.matching_skills
-                : developer.matchingOfferSkills,
-            matchingNeedSkills:
-              match.direction ===
-              "their_offer_matches_my_need"
-                ? match.matching_skills
-                : developer.matchingNeedSkills,
-            aiExplanation:
-              match.explanation || null,
-            aiExchangeValue:
-              match.exchange_value || null,
-            aiMatch: match,
-          };
-        })
-      );
+      // Keep AI results separate from deterministic compatibility scores.
+      // The AI response may load after the developer cards; it must never
+      // replace the percentage calculated from offers and needs.
+      setAiMatches(Array.from(bestByDeveloper.values()));
     } catch (err) {
       console.error("AI matching error:", err);
 
@@ -607,11 +578,30 @@ function Discover() {
     );
   }, [developers]);
 
+  // AI contributes explanations only. <DeepLText text="Compatibility" /> percentage and matched
+  // skill lists remain those calculated by the local offers/needs algorithm.
+  const developersWithAI = useMemo(() => {
+    const matchByDeveloper = new Map(
+      aiMatches.map((match) => [match.developer_id, match])
+    );
+
+    return developers.map((developer) => {
+      const match = matchByDeveloper.get(developer.id);
+
+      return {
+        ...developer,
+        aiExplanation: match?.explanation || null,
+        aiExchangeValue: match?.exchange_value || null,
+        aiMatch: match ?? null,
+      };
+    });
+  }, [developers, aiMatches]);
+
   const filteredDevelopers = useMemo(() => {
     const normalizedSearch =
       search.trim().toLowerCase();
 
-    return developers
+    return developersWithAI
       .filter((developer) => {
         const developerSkills = developer.skills
           .map(
@@ -652,23 +642,21 @@ function Discover() {
           (b.compatibilityScore ?? -1) -
           (a.compatibilityScore ?? -1)
       );
-  }, [developers, search, selectedSkill]);
+  }, [developersWithAI, search, selectedSkill]);
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       <div>
         <p className="text-sm font-semibold text-blue-600">
-          AFRIDEV NETWORK
+          <DeepLText text="AFRIDEV NETWORK" />
         </p>
 
         <h1 className="mt-1 text-3xl font-bold text-slate-950">
-          Discover Developers
+          <DeepLText text="Discover Developers" />
         </h1>
 
         <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
-          Find African developers with complementary
-          skills, inspect their verified evidence, and
-          discover people you can build with.
+          <DeepLText text="Find African developers with complementary skills, inspect their verified evidence, and discover people you can build with." />
         </p>
       </div>
 
@@ -683,7 +671,7 @@ function Discover() {
               onChange={(event) =>
                 setSearch(event.target.value)
               }
-              placeholder="Search developers, skills, countries..."
+              placeholder={searchPlaceholder}
               className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-11 pr-4 text-sm outline-none transition focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-100"
             />
           </div>
@@ -695,7 +683,7 @@ function Discover() {
             }
             className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 lg:w-64"
           >
-            <option value="all">All skills</option>
+            <option value="all"><DeepLText text="All skills" /></option>
 
             {skillOptions.map(([id, name]) => (
               <option key={id} value={id}>
@@ -708,17 +696,13 @@ function Discover() {
         <div className="mt-4 flex items-center gap-2 text-xs text-slate-500">
           <Users size={14} />
 
-          {filteredDevelopers.length} developer
-          {filteredDevelopers.length === 1
-            ? ""
-            : "s"}{" "}
-          found
+          {filteredDevelopers.length} <DeepLText text={filteredDevelopers.length === 1 ? "developer" : "developers"} />{" "}<DeepLText text="found" />
         </div>
       </div>
 
       {error && (
         <div className="mt-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error}
+          <DeepLText text={error} />
         </div>
       )}
 
@@ -730,7 +714,7 @@ function Discover() {
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <h2 className="text-sm font-bold text-blue-950">
-                  AI-powered exchange matching
+                  <DeepLText text="AI-powered exchange matching" />
                 </h2>
 
                 <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-blue-700">
@@ -739,20 +723,20 @@ function Discover() {
               </div>
 
               <p className="mt-1 text-xs leading-5 text-blue-800">
-                Compatibility is calculated from complementary offers and needs, while AI explains the most useful exchange opportunities.
+                <><DeepLText text="Compatibility" /> is calculated from complementary offers and needs, while AI explains the most useful exchange opportunities.</>
               </p>
 
               {aiLoading ? (
                 <p className="mt-2 text-[11px] font-medium text-blue-700">
-                  Finding your best exchange opportunities...
+                  <DeepLText text="Finding your best exchange opportunities..." />
                 </p>
               ) : aiError ? (
                 <p className="mt-2 text-[11px] font-medium text-amber-700">
-                  AI explanations are temporarily unavailable. Standard matching is still active.
+                  <DeepLText text="AI explanations are temporarily unavailable. Standard matching is still active." />
                 </p>
               ) : (
                 <p className="mt-2 text-[11px] font-medium text-emerald-700">
-                  AI matching is active.
+                  <DeepLText text="AI matching is active." />
                 </p>
               )}
             </div>
@@ -774,11 +758,11 @@ function Discover() {
           <Users className="mx-auto h-10 w-10 text-slate-300" />
 
           <h2 className="mt-4 font-semibold text-slate-900">
-            No developers found
+            <DeepLText text="No developers found" />
           </h2>
 
           <p className="mt-1 text-sm text-slate-500">
-            Try another search or select a different skill.
+            <DeepLText text="Try another search or select a different skill." />
           </p>
         </div>
       ) : (
@@ -900,7 +884,7 @@ function DeveloperCardView({
                 {developer.full_name || "AfriDev Developer"}
               </p>
               <p className="mt-1 text-xs text-slate-300">
-                Developer profile photo
+                <DeepLText text="Developer profile photo" />
               </p>
             </div>
           </div>
@@ -914,12 +898,12 @@ function DeveloperCardView({
 
       <div className="mt-4">
         <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
-          Skills
+          <DeepLText text="Skills" />
         </p>
 
         {developer.skills.length === 0 ? (
           <p className="text-sm text-slate-500">
-            No skills added yet.
+            <DeepLText text="No skills added yet." />
           </p>
         ) : (
           <div className="flex flex-wrap gap-2">
@@ -960,11 +944,11 @@ function DeveloperCardView({
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">
-                Compatibility
+                <DeepLText text="Compatibility" />
               </p>
 
               <p className="mt-1 text-xs text-blue-800">
-                Based on complementary offers and needs
+                <DeepLText text="Based on complementary offers and needs" />
               </p>
             </div>
 
@@ -976,7 +960,7 @@ function DeveloperCardView({
           {developer.matchingNeedSkills.length > 0 && (
             <div className="mt-3">
               <p className="text-[11px] font-semibold text-blue-900">
-                They can help with your needs
+                <DeepLText text="They can help with your needs" />
               </p>
 
               <div className="mt-1.5 flex flex-wrap gap-1.5">
@@ -997,7 +981,7 @@ function DeveloperCardView({
           {developer.matchingOfferSkills.length > 0 && (
             <div className="mt-3">
               <p className="text-[11px] font-semibold text-blue-900">
-                They need what you offer
+                <DeepLText text="They need what you offer" />
               </p>
 
               <div className="mt-1.5 flex flex-wrap gap-1.5">
@@ -1025,7 +1009,7 @@ function DeveloperCardView({
             </div>
 
             <p className="text-xs font-bold uppercase tracking-wide text-violet-800">
-              AI exchange insight
+              <DeepLText text="AI exchange insight" />
             </p>
           </div>
 
@@ -1036,7 +1020,7 @@ function DeveloperCardView({
           {developer.aiExchangeValue && (
             <div className="mt-3 rounded-lg border border-white bg-white/80 px-3 py-2">
               <p className="text-[10px] font-bold uppercase tracking-wide text-violet-600">
-                Exchange value
+                <DeepLText text="Exchange value" />
               </p>
 
               <p className="mt-1 text-xs leading-5 text-slate-700">
@@ -1083,7 +1067,7 @@ function DeveloperCardView({
           {developer.pendingEvidenceCount === 1
             ? "item is"
             : "items are"}{" "}
-          pending community verification.
+          <DeepLText text="pending community verification." />
         </div>
       )}
 
@@ -1093,16 +1077,20 @@ function DeveloperCardView({
           className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
         >
           <ExternalLink size={16} />
-          View Passport
+          <DeepLText text="View Passport" />
         </Link>
 
         <Link
           to="/exchange"
           className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-blue-700 px-3 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-800"
         >
-          {developer.compatibilityScore !== null
-            ? "Propose Exchange"
-            : "Exchange"}
+          <DeepLText
+            text={
+              developer.compatibilityScore !== null
+                ? "Propose Exchange"
+                : "Exchange"
+            }
+          />
         </Link>
       </div>
     </article>
@@ -1121,7 +1109,7 @@ function DeveloperCardView({
           className="absolute right-5 top-5 z-10 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white backdrop-blur transition hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white"
           aria-label="Close photo"
         >
-          Close
+          <DeepLText text="Close" />
         </button>
 
         <div
@@ -1180,7 +1168,7 @@ function TrustSignal({
       </div>
 
       <p className="mt-1 text-[11px] leading-4 text-slate-500">
-        {label}
+        <DeepLText text={label} />
       </p>
     </div>
   );

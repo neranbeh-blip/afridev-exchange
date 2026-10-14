@@ -1,4 +1,3 @@
-
 import {
   Bell,
   CheckCheck,
@@ -18,9 +17,12 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import DeepLText from "./DeepLText";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
+import { getAppLanguage } from "../../lib/deepLLanguage";
 import afridevLogo from "../../assets/afridev-logo-dark-wordmark.png";
+import FirstTimeGuide from "../help/FirstTimeGuide";
 
 type Notification = {
   id: string;
@@ -30,6 +32,8 @@ type Notification = {
   link: string | null;
   read: boolean;
   created_at: string;
+  translation_key?: string | null;
+  translation_params?: Record<string, unknown> | null;
 };
 
 type Profile = {
@@ -40,91 +44,84 @@ type Profile = {
   avatar_url: string | null;
 };
 
-function timeAgo(value: string) {
+function TimeAgo({ value }: { value: string }) {
+  const [language, setLanguage] = useState(getAppLanguage);
+
+  useEffect(() => {
+    const onLanguageChange = (event: Event) => {
+      const customEvent = event as CustomEvent<{ language: "EN" | "FR" }>;
+      setLanguage(customEvent.detail.language);
+    };
+
+    window.addEventListener("afridev-language-change", onLanguageChange);
+    return () =>
+      window.removeEventListener("afridev-language-change", onLanguageChange);
+  }, []);
+
   const seconds = Math.max(
     0,
-    Math.floor((Date.now() - new Date(value).getTime()) / 1000)
+    Math.floor((Date.now() - new Date(value).getTime()) / 1000),
   );
 
   if (seconds < 60) {
-    return "just now";
+    return <DeepLText text="just now" />;
   }
 
   const minutes = Math.floor(seconds / 60);
 
   if (minutes < 60) {
-    return `${minutes}m ago`;
+    return language === "FR" ? (
+      <>{`il y a ${minutes} min`}</>
+    ) : (
+      <>{`${minutes}m ago`}</>
+    );
   }
 
   const hours = Math.floor(minutes / 60);
 
   if (hours < 24) {
-    return `${hours}h ago`;
+    return language === "FR" ? (
+      <>{`il y a ${hours} h`}</>
+    ) : (
+      <>{`${hours}h ago`}</>
+    );
   }
 
   const days = Math.floor(hours / 24);
 
   if (days < 7) {
-    return `${days}d ago`;
+    return language === "FR" ? (
+      <>{`il y a ${days} j`}</>
+    ) : (
+      <>{`${days}d ago`}</>
+    );
   }
 
-  return new Date(value).toLocaleDateString(undefined, {
-    day: "numeric",
-    month: "short",
-  });
+  return (
+    <>
+      {new Date(value).toLocaleDateString(language === "FR" ? "fr-FR" : "en", {
+        day: "numeric",
+        month: "short",
+      })}
+    </>
+  );
 }
 
 const navigation = [
-  {
-    label: "Dashboard",
-    path: "/dashboard",
-    icon: LayoutDashboard,
-  },
-  {
-    label: "Discover",
-    path: "/discover",
-    icon: Compass,
-  },
-  {
-    label: "Exchange",
-    path: "/exchange",
-    icon: Network,
-  },
-  {
-    label: "Problems",
-    path: "/problems",
-    icon: Sparkles,
-  },
-  {
-    label: "Projects",
-    path: "/projects",
-    icon: Code2,
-  },
-  {
-    label: "Completed Projects",
-    path: "/completed-projects",
-    icon: Code2,
-  },
-  {
-    label: "Messages",
-    path: "/messages",
-    icon: MessageSquare,
-  },
-  {
-    label: "Developer Passport",
-    path: "/passport",
-    icon: UserRound,
-  },
+  { label: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
+  { label: "Discover", path: "/discover", icon: Compass },
+  { label: "Exchange", path: "/exchange", icon: Network },
+  { label: "Problems", path: "/problems", icon: Sparkles },
+  { label: "Projects", path: "/projects", icon: Code2 },
+  { label: "Completed Projects", path: "/completed-projects", icon: Code2 },
+  { label: "Messages", path: "/messages", icon: MessageSquare },
+  { label: "Developer Passport", path: "/passport", icon: UserRound },
   {
     label: "Community Verification",
-    path: "/community-verification",
+    path: "/admin/evidence",
     icon: ShieldCheck,
   },
-  {
-    label: "Notifications",
-    path: "/notifications",
-    icon: Bell,
-  },
+  { label: "Notifications", path: "/notifications", icon: Bell },
 ];
 
 const navigationGroups = [
@@ -137,21 +134,23 @@ const navigationGroups = [
     label: "Discover & Connect",
     description: "People and collaboration",
     items: navigation.filter((item) =>
-      ["/discover", "/exchange", "/messages"].includes(item.path)
+      ["/discover", "/exchange", "/messages"].includes(item.path),
     ),
   },
   {
     label: "Build & Solve",
     description: "Projects and challenges",
     items: navigation.filter((item) =>
-      ["/problems", "/projects", "/completed-projects"].includes(item.path)
+      ["/problems", "/projects", "/completed-projects"].includes(item.path),
     ),
   },
   {
     label: "Trust & Updates",
     description: "Identity and activity",
     items: navigation.filter((item) =>
-      ["/passport", "/community-verification", "/notifications"].includes(item.path)
+      ["/passport", "/admin/evidence", "/notifications"].includes(
+        item.path,
+      ),
     ),
   },
 ];
@@ -166,17 +165,16 @@ function AppShell() {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
 
   const notificationRef = useRef<HTMLDivElement>(null);
-
   const unreadCount = notifications.filter((item) => !item.read).length;
 
   async function loadNotifications(userId: string) {
     const { data, error } = await supabase
       .from("notifications")
-      .select("id, type, title, message, link, read, created_at")
+      .select(
+        "id, type, title, message, link, read, created_at, translation_key, translation_params",
+      )
       .eq("user_id", userId)
-      .order("created_at", {
-        ascending: false,
-      })
+      .order("created_at", { ascending: false })
       .limit(20);
 
     if (error) {
@@ -189,19 +187,14 @@ function AppShell() {
 
   useEffect(() => {
     let mounted = true;
-
-    let channel:
-      | ReturnType<typeof supabase.channel>
-      | null = null;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
 
     async function setupNotifications() {
       const {
         data: { user },
       } = await supabase.auth.getUser();
 
-      if (!user || !mounted) {
-        return;
-      }
+      if (!user || !mounted) return;
 
       const { data: profileData, error: profileError } = await supabase
         .from("profiles")
@@ -217,6 +210,8 @@ function AppShell() {
 
       await loadNotifications(user.id);
 
+      if (!mounted) return;
+
       channel = supabase
         .channel(`notifications-${user.id}`)
         .on(
@@ -227,9 +222,7 @@ function AppShell() {
             table: "notifications",
             filter: `user_id=eq.${user.id}`,
           },
-          () => {
-            void loadNotifications(user.id);
-          }
+          () => void loadNotifications(user.id),
         )
         .subscribe();
     }
@@ -238,10 +231,7 @@ function AppShell() {
 
     return () => {
       mounted = false;
-
-      if (channel) {
-        void supabase.removeChannel(channel);
-      }
+      if (channel) void supabase.removeChannel(channel);
     };
   }, []);
 
@@ -257,10 +247,7 @@ function AppShell() {
     }
 
     document.addEventListener("mousedown", handleOutsideClick);
-
-    return () => {
-      document.removeEventListener("mousedown", handleOutsideClick);
-    };
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
   }, [notificationsOpen]);
 
   async function markNotificationRead(notification: Notification) {
@@ -272,25 +259,19 @@ function AppShell() {
 
       if (error) {
         console.error("Notification read error:", error);
+        return;
       }
 
       setNotifications((current) =>
         current.map((item) =>
-          item.id === notification.id
-            ? {
-                ...item,
-                read: true,
-              }
-            : item
-        )
+          item.id === notification.id ? { ...item, read: true } : item,
+        ),
       );
     }
 
     setNotificationsOpen(false);
 
-    if (notification.link) {
-      navigate(notification.link);
-    }
+    if (notification.link) navigate(notification.link);
   }
 
   async function markAllNotificationsRead() {
@@ -298,9 +279,7 @@ function AppShell() {
       .filter((item) => !item.read)
       .map((item) => item.id);
 
-    if (unreadIds.length === 0) {
-      return;
-    }
+    if (unreadIds.length === 0) return;
 
     const { error } = await supabase
       .from("notifications")
@@ -313,17 +292,12 @@ function AppShell() {
     }
 
     setNotifications((current) =>
-      current.map((item) => ({
-        ...item,
-        read: true,
-      }))
+      current.map((item) => ({ ...item, read: true })),
     );
   }
 
   async function handleSignOut() {
-    if (signingOut) {
-      return;
-    }
+    if (signingOut) return;
 
     setSigningOut(true);
 
@@ -336,10 +310,7 @@ function AppShell() {
     }
 
     setMobileMenuOpen(false);
-
-    navigate("/login", {
-      replace: true,
-    });
+    navigate("/login", { replace: true });
   }
 
   function openSettings() {
@@ -358,9 +329,7 @@ function AppShell() {
   const initials = (() => {
     const name = displayName.trim();
 
-    if (!name || name === "Developer") {
-      return "DV";
-    }
+    if (!name || name === "Developer") return "DV";
 
     const parts = name.split(/\s+/).filter(Boolean);
 
@@ -373,10 +342,11 @@ function AppShell() {
 
   return (
     <div className="min-h-screen bg-slate-50">
+      <FirstTimeGuide />
+
       {/* DESKTOP SIDEBAR */}
       <aside className="fixed inset-y-0 left-0 hidden w-[278px] bg-[#07111f] text-white lg:block">
         <div className="flex h-full flex-col">
-          {/* BRAND */}
           <div className="flex min-h-24 items-center gap-3 border-b border-white/10 px-4 py-3">
             <img
               src={afridevLogo}
@@ -386,15 +356,14 @@ function AppShell() {
 
             <div className="min-w-0 border-l border-white/15 pl-3">
               <p className="text-[11px] font-bold leading-4 text-white">
-                African Developer Network
+                <DeepLText text="African Developer Network" />
               </p>
               <p className="mt-1 text-[10px] leading-[1.35] text-slate-400">
-                Exchange skills. Build together. Prove your impact.
+                <DeepLText text="Exchange skills. Build together. Prove your impact." />
               </p>
             </div>
           </div>
 
-          {/* NAVIGATION */}
           <nav className="flex-1 space-y-6 overflow-y-auto px-3 py-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {navigationGroups.map((group) => (
               <section key={group.label} aria-label={group.label}>
@@ -402,10 +371,10 @@ function AppShell() {
                   <span className="mt-1 h-4 w-1 shrink-0 rounded-full bg-cyan-400/80" />
                   <div>
                     <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-200">
-                      {group.label}
+                      <DeepLText text={group.label} />
                     </p>
                     <p className="mt-0.5 text-[10px] leading-4 text-slate-500">
-                      {group.description}
+                      <DeepLText text={group.description} />
                     </p>
                   </div>
                 </div>
@@ -429,9 +398,9 @@ function AppShell() {
                         <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/[0.04] text-slate-400 transition group-hover:bg-white/[0.08] group-hover:text-cyan-200">
                           <Icon size={17} />
                         </span>
-
-                        <span className="min-w-0 flex-1">{item.label}</span>
-
+                        <span className="min-w-0 flex-1">
+                          <DeepLText text={item.label} />
+                        </span>
                         <ChevronRight
                           size={13}
                           className="shrink-0 opacity-0 transition group-hover:opacity-70"
@@ -444,7 +413,6 @@ function AppShell() {
             ))}
           </nav>
 
-          {/* SETTINGS + SIGN OUT */}
           <div className="border-t border-white/10 p-3">
             <button
               type="button"
@@ -452,7 +420,7 @@ function AppShell() {
               className="flex w-full items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-semibold text-slate-300 transition hover:bg-white/5 hover:text-white"
             >
               <Settings size={18} />
-              Settings
+              <DeepLText text="Settings" />
             </button>
 
             <button
@@ -462,7 +430,7 @@ function AppShell() {
               className="mt-1 flex w-full items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-semibold text-red-300 transition hover:bg-red-500/10 hover:text-red-200 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <LogOut size={18} />
-              {signingOut ? "Signing out..." : "Sign out"}
+              <DeepLText text={signingOut ? "Signing out..." : "Sign out"} />
             </button>
           </div>
         </div>
@@ -477,7 +445,6 @@ function AppShell() {
           />
 
           <aside className="relative flex h-full w-[290px] flex-col bg-[#07111f] text-white shadow-2xl">
-            {/* MOBILE BRAND */}
             <div className="flex min-h-24 items-center justify-between gap-2 border-b border-white/10 px-3 py-3">
               <div className="flex min-w-0 items-center gap-2">
                 <img
@@ -485,13 +452,12 @@ function AppShell() {
                   alt="AfriDev Developer Exchange logo"
                   className="h-9 w-[92px] shrink-0 object-contain object-left"
                 />
-
                 <div className="min-w-0 border-l border-white/15 pl-2">
                   <p className="text-[10px] font-bold leading-4 text-white">
-                    African Developer Network
+                    <DeepLText text="African Developer Network" />
                   </p>
                   <p className="mt-0.5 text-[9px] leading-[1.35] text-slate-400">
-                    Exchange skills. Build together. Prove your impact.
+                    <DeepLText text="Exchange skills. Build together. Prove your impact." />
                   </p>
                 </div>
               </div>
@@ -501,12 +467,12 @@ function AppShell() {
                 onClick={() => setMobileMenuOpen(false)}
                 className="rounded-lg p-2 text-slate-300 hover:bg-white/10 hover:text-white"
                 aria-label="Close menu"
+                title="Close menu"
               >
                 <X size={20} />
               </button>
             </div>
 
-            {/* MOBILE NAV */}
             <nav className="flex-1 space-y-5 overflow-y-auto px-3 py-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {navigationGroups.map((group) => (
                 <section key={group.label} aria-label={group.label}>
@@ -514,10 +480,10 @@ function AppShell() {
                     <span className="mt-1 h-4 w-1 shrink-0 rounded-full bg-cyan-400/80" />
                     <div>
                       <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-200">
-                        {group.label}
+                        <DeepLText text={group.label} />
                       </p>
                       <p className="mt-0.5 text-[10px] leading-4 text-slate-500">
-                        {group.description}
+                        <DeepLText text={group.description} />
                       </p>
                     </div>
                   </div>
@@ -542,8 +508,9 @@ function AppShell() {
                           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/[0.04] text-slate-400">
                             <Icon size={17} />
                           </span>
-
-                          <span className="min-w-0 flex-1">{item.label}</span>
+                          <span className="min-w-0 flex-1">
+                            <DeepLText text={item.label} />
+                          </span>
                         </NavLink>
                       );
                     })}
@@ -552,7 +519,6 @@ function AppShell() {
               ))}
             </nav>
 
-            {/* MOBILE SETTINGS */}
             <div className="border-t border-white/10 p-3">
               <button
                 type="button"
@@ -560,7 +526,7 @@ function AppShell() {
                 className="flex w-full items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-semibold text-slate-300 hover:bg-white/5 hover:text-white"
               >
                 <Settings size={18} />
-                Settings
+                <DeepLText text="Settings" />
               </button>
 
               <button
@@ -570,7 +536,7 @@ function AppShell() {
                 className="mt-1 flex w-full items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-semibold text-red-300 hover:bg-red-500/10 disabled:opacity-50"
               >
                 <LogOut size={18} />
-                {signingOut ? "Signing out..." : "Sign out"}
+                <DeepLText text={signingOut ? "Signing out..." : "Sign out"} />
               </button>
             </div>
           </aside>
@@ -579,15 +545,14 @@ function AppShell() {
 
       {/* MAIN APPLICATION */}
       <div className="lg:pl-[278px]">
-        {/* TOP BAR */}
         <header className="sticky top-0 z-30 flex h-20 items-center justify-between border-b border-slate-200 bg-white/95 px-4 backdrop-blur sm:px-6">
-          {/* LEFT */}
           <div className="flex items-center gap-3">
             <button
               type="button"
               onClick={() => setMobileMenuOpen(true)}
               className="rounded-xl p-2 text-slate-600 hover:bg-slate-100 lg:hidden"
               aria-label="Open menu"
+              title="Open menu"
             >
               <Menu size={22} />
             </button>
@@ -597,12 +562,11 @@ function AppShell() {
                 AfriDev Exchange
               </p>
               <p className="mt-0.5 font-bold text-slate-950">
-                Build together.
+                <DeepLText text="Build together." />
               </p>
             </div>
           </div>
 
-          {/* RIGHT */}
           <div className="flex items-center gap-3">
             {/* NOTIFICATIONS */}
             <div ref={notificationRef} className="relative">
@@ -611,9 +575,9 @@ function AppShell() {
                 onClick={() => setNotificationsOpen((open) => !open)}
                 className="relative rounded-xl p-2.5 text-slate-600 transition hover:bg-slate-100"
                 aria-label="Notifications"
+                title="Notifications"
               >
                 <Bell size={20} />
-
                 {unreadCount > 0 && (
                   <span className="absolute -right-0.5 -top-0.5 flex min-h-5 min-w-5 items-center justify-center rounded-full bg-blue-600 px-1 text-[10px] font-bold text-white">
                     {unreadCount > 99 ? "99+" : unreadCount}
@@ -626,10 +590,10 @@ function AppShell() {
                   <div className="flex items-center justify-between border-b border-slate-100 px-4 py-4">
                     <div>
                       <p className="font-bold text-slate-950">
-                        Notifications
+                        <DeepLText text="Notifications" />
                       </p>
                       <p className="mt-0.5 text-xs text-slate-500">
-                        {unreadCount} unread
+                        {unreadCount} <DeepLText text="unread" />
                       </p>
                     </div>
 
@@ -640,7 +604,7 @@ function AppShell() {
                       className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 disabled:text-slate-300"
                     >
                       <CheckCheck size={14} />
-                      Mark all read
+                      <DeepLText text="Mark all read" />
                     </button>
                   </div>
 
@@ -652,11 +616,10 @@ function AppShell() {
                           className="mx-auto text-slate-300"
                         />
                         <p className="mt-3 text-sm font-bold text-slate-700">
-                          You're all caught up
+                          <DeepLText text="You're all caught up" />
                         </p>
                         <p className="mt-1 text-xs leading-5 text-slate-400">
-                          New matches and collaboration updates will appear
-                          here.
+                          <DeepLText text="New matches and collaboration updates will appear here." />
                         </p>
                       </div>
                     ) : (
@@ -671,29 +634,27 @@ function AppShell() {
                         >
                           <span
                             className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${
-                              notification.read
-                                ? "bg-slate-200"
-                                : "bg-blue-600"
+                              notification.read ? "bg-slate-200" : "bg-blue-600"
                             }`}
                           />
 
                           <span className="min-w-0 flex-1">
                             <span className="flex min-w-0 flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
                               <span className="min-w-0 break-words font-semibold text-slate-900 [overflow-wrap:anywhere]">
-                                {notification.title}
+                                <DeepLText text={notification.title} />
                               </span>
                               <span className="max-w-full break-words text-[11px] text-slate-400 [overflow-wrap:anywhere] sm:shrink-0">
-                                {timeAgo(notification.created_at)}
+                                <TimeAgo value={notification.created_at} />
                               </span>
                             </span>
 
                             <span className="mt-1 block whitespace-normal break-words text-sm leading-5 text-slate-500 [overflow-wrap:anywhere]">
-                              {notification.message}
+                              <DeepLText text={notification.message} />
                             </span>
 
                             {notification.link && (
                               <span className="mt-2 inline-flex items-center gap-1 text-xs font-bold text-blue-600">
-                                Open
+                                <DeepLText text="Open" />
                                 <ExternalLink size={12} />
                               </span>
                             )}
@@ -712,17 +673,15 @@ function AppShell() {
                       }}
                       className="w-full rounded-xl px-3 py-2.5 text-sm font-bold text-blue-600 hover:bg-blue-50"
                     >
-                      View all notifications
+                      <DeepLText text="View all notifications" />
                     </button>
                   </div>
                 </div>
               )}
             </div>
 
-            {/* SEPARATOR */}
             <div className="hidden h-8 w-px bg-slate-200 sm:block" />
 
-            {/* USER */}
             <button
               type="button"
               onClick={() => {
@@ -756,7 +715,6 @@ function AppShell() {
           </div>
         </header>
 
-        {/* PAGE CONTENT */}
         <main className="min-h-[calc(100vh-5rem)]">
           <Outlet />
         </main>

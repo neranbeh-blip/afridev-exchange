@@ -11,10 +11,13 @@ import {
   Users,
   Zap,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import heroImage from "../../assets/hero.png";
 import { supabase } from "../../lib/supabase";
+import { localizeNotification } from "../../lib/deepLNotification";
+import { getAppLanguage, type AppLanguage } from "../../lib/deepLLanguage";
+import { translateWithDeepL } from "../../lib/deepLTranslate";
 
 type Profile = {
   id: string;
@@ -40,6 +43,8 @@ type DashboardNotification = {
   read: boolean;
   created_at: string;
   type: string;
+  translation_key?: string | null;
+  translation_params?: Record<string, unknown> | null;
 };
 
 type MatchRecord = {
@@ -54,24 +59,24 @@ type SuggestedDeveloper = Profile & {
   skills: string[];
 };
 
-function timeAgo(value: string) {
+function timeAgo(value: string, language: string) {
   const seconds = Math.max(
     0,
     Math.floor((Date.now() - new Date(value).getTime()) / 1000)
   );
 
-  if (seconds < 60) return "just now";
+  if (seconds < 60) return language === "fr" ? "à l’instant" : "just now";
 
   const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
+  if (minutes < 60) return language === "fr" ? `il y a ${minutes} min` : `${minutes}m ago`;
 
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
+  if (hours < 24) return language === "fr" ? `il y a ${hours} h` : `${hours}h ago`;
 
   const days = Math.floor(hours / 24);
-  if (days < 7) return `${days}d ago`;
+  if (days < 7) return language === "fr" ? `il y a ${days} j` : `${days}d ago`;
 
-  return new Date(value).toLocaleDateString(undefined, {
+  return new Date(value).toLocaleDateString(language === "fr" ? "fr-FR" : "en", {
     day: "numeric",
     month: "short",
   });
@@ -89,8 +94,67 @@ function initials(name: string | null | undefined) {
   );
 }
 
+const DASHBOARD_TEXTS = ["You are not authenticated.", "We couldn't load your dashboard data.", "Exchange skills.", "Build solutions.", "Grow Africa.", "Developer workspace", "Welcome back, {{name}}.", "Search AfriDev", "Search developers, projects, skills, problems...", "Searching developers...", "No developers found", "Try another name or username.", "Developers", "View all developers", "Africa's developer exchange", "A community of African developers connecting, collaborating and building a greater tomorrow.", "Find developers", "Exchange skills", "Skill Matches", "Compatible opportunities", "Active Exchanges", "Currently in progress", "Projects you own", "My Network", "Followers", "Recent Activity", "Latest activity around your account", "View all", "No recent activity yet", "Matches, follows, messages and project updates will appear here.", "Quick Actions", "Move your work forward", "Find Developers", "Discover and connect with African talent", "Create a Project", "Turn ideas into reality together", "Post a Problem", "Get help from the community", "Exchange Skills", "Teach, learn and grow", "View Passport", "Notifications", "unread", "No notifications", "Suggested Developers", "People you may want to collaborate with", "More developers will appear here", "Best skill match", "Your capabilities complement this developer's needs.", "Explore match", "Add more skills, offers and needs to unlock complementary developer matches.", "Complete your Passport"];
+
+function useDeepLTranslator() {
+  const [language, setLanguage] = useState<AppLanguage>(getAppLanguage);
+  const [translations, setTranslations] = useState<Record<string, string>>({});
+  const translationsRef = useRef(translations);
+
+  useEffect(() => {
+    translationsRef.current = translations;
+  }, [translations]);
+
+  useEffect(() => {
+    function handleLanguageChange(event: Event) {
+      const customEvent = event as CustomEvent<{ language: AppLanguage }>;
+      setLanguage(customEvent.detail.language);
+    }
+    window.addEventListener("afridev-language-change", handleLanguageChange);
+    return () => window.removeEventListener("afridev-language-change", handleLanguageChange);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (language === "EN") {
+      setTranslations({});
+      return () => { cancelled = true; };
+    }
+
+    async function translateCatalog() {
+      const entries = await Promise.all(
+        DASHBOARD_TEXTS.map(async (source) => {
+          try {
+            return [source, await translateWithDeepL(source, language)] as const;
+          } catch (error) {
+            console.error("DeepL interface translation failed:", error);
+            return [source, source] as const;
+          }
+        }),
+      );
+      if (!cancelled) setTranslations(Object.fromEntries(entries));
+    }
+    void translateCatalog();
+    return () => { cancelled = true; };
+  }, [language]);
+
+  const t = useCallback((source: string, params?: Record<string, string | number>) => {
+    let result = language === "FR" ? (translationsRef.current[source] ?? source) : source;
+    if (params) {
+      for (const [key, value] of Object.entries(params)) {
+        result = result.replaceAll(`{{${key}}}`, String(value));
+      }
+    }
+    return result;
+  }, [language]);
+
+  return { t, language };
+}
+
 function Dashboard() {
   const navigate = useNavigate();
+  const { t, language } = useDeepLTranslator();
+  const [translatedNotifications, setTranslatedNotifications] = useState<Record<string, { title: string; message: string }>>({});
 
   const [profile, setProfile] = useState<Profile | null>(null);
   const [stats, setStats] = useState<DashboardStats>({
@@ -132,7 +196,7 @@ function Dashboard() {
         } = await supabase.auth.getUser();
 
         if (userError) throw userError;
-        if (!user) throw new Error("You are not authenticated.");
+        if (!user) throw new Error(t("You are not authenticated."));
 
         const [
           profileResult,
@@ -188,7 +252,7 @@ function Dashboard() {
           supabase
             .from("notifications")
             .select(
-              "id, title, message, link, read, created_at, type"
+              "id, title, message, link, read, created_at, type, translation_key, translation_params"
             )
             .eq("user_id", user.id)
             .order("created_at", { ascending: false })
@@ -332,7 +396,7 @@ function Dashboard() {
           setError(
             err instanceof Error
               ? err.message
-              : "We couldn't load your dashboard data."
+              : t("We couldn't load your dashboard data.")
           );
         }
       } finally {
@@ -408,27 +472,66 @@ function Dashboard() {
     [notifications]
   );
 
+  useEffect(() => {
+    let cancelled = false;
+
+    async function translateDashboardNotifications() {
+      if (language === "EN") {
+        setTranslatedNotifications(Object.fromEntries(
+          notifications.map((notification) => [notification.id, {
+            title: notification.title,
+            message: notification.message,
+          }]),
+        ));
+        return;
+      }
+
+      const results = await Promise.all(notifications.map(async (notification) => {
+        try {
+          const translated = await localizeNotification(notification);
+          return [notification.id, translated] as const;
+        } catch (error) {
+          console.error("DeepL notification translation failed:", error);
+          return [notification.id, { title: notification.title, message: notification.message }] as const;
+        }
+      }));
+
+      if (!cancelled) setTranslatedNotifications(Object.fromEntries(results));
+    }
+
+    void translateDashboardNotifications();
+    return () => { cancelled = true; };
+  }, [notifications, language]);
+
+  function localizeDashboardNotificationTitle(notification: DashboardNotification) {
+    return translatedNotifications[notification.id]?.title ?? notification.title;
+  }
+
+  function localizeDashboardNotificationMessage(notification: DashboardNotification) {
+    return translatedNotifications[notification.id]?.message ?? notification.message;
+  }
+
   const heroTitle = (
     <>
-      Exchange skills.
+      {t("Exchange skills.")}
       <br />
-      Build solutions.
+      {t("Build solutions.")}
       <br />
-      <span className="text-sky-400">Grow Africa.</span>
+      <span className="text-sky-400">{t("Grow Africa.")}</span>
     </>
   );
 
   return (
-    <div className="min-h-[calc(100vh-5rem)] bg-slate-50">
+    <div className="afridev-dashboard-motion min-h-[calc(100vh-5rem)] bg-slate-50">
       <div className="mx-auto max-w-[1600px] px-4 py-5 sm:px-6 lg:px-8">
         {/* SEARCH / PAGE CONTEXT */}
         <div className="mb-5 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-600">
-              Developer workspace
+              {t("Developer workspace")}
             </p>
             <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-950">
-              Welcome back, {firstName}.
+              {t("Welcome back, {{name}}.", { name: firstName })}
             </h1>
           </div>
 
@@ -436,7 +539,7 @@ function Dashboard() {
             <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
               <Search size={20} className="shrink-0 text-slate-400" />
               <input
-                aria-label="Search AfriDev"
+                aria-label={t("Search AfriDev")}
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 onFocus={() => {
@@ -445,7 +548,7 @@ function Dashboard() {
                 onKeyDown={(event) => {
                   if (event.key === "Escape") setSearchOpen(false);
                 }}
-                placeholder="Search developers, projects, skills, problems..."
+                placeholder={t("Search developers, projects, skills, problems...")}
                 className="min-w-0 flex-1 bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400"
               />
               <kbd className="hidden rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] font-semibold text-slate-500 sm:block">
@@ -457,18 +560,18 @@ function Dashboard() {
               <div className="absolute left-0 right-0 top-full z-50 mt-2 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
                 {searchLoading ? (
                   <div className="px-5 py-6 text-center text-sm text-slate-500">
-                    Searching developers...
+                    {t("Searching developers...")}
                   </div>
                 ) : searchResults.length === 0 ? (
                   <div className="px-5 py-6 text-center">
                     <Users size={24} className="mx-auto text-slate-300" />
-                    <p className="mt-2 text-sm font-semibold text-slate-700">No developers found</p>
-                    <p className="mt-1 text-xs text-slate-400">Try another name or username.</p>
+                    <p className="mt-2 text-sm font-semibold text-slate-700">{t("No developers found")}</p>
+                    <p className="mt-1 text-xs text-slate-400">{t("Try another name or username.")}</p>
                   </div>
                 ) : (
                   <>
                     <div className="border-b border-slate-100 px-4 py-3">
-                      <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Developers</p>
+                      <p className="text-xs font-bold uppercase tracking-wide text-slate-400">{t("Developers")}</p>
                     </div>
                     <div className="divide-y divide-slate-100">
                       {searchResults.map((developer) => (
@@ -502,7 +605,7 @@ function Dashboard() {
                       onClick={() => { setSearchOpen(false); navigate("/discover"); }}
                       className="w-full border-t border-slate-100 px-4 py-3 text-center text-sm font-bold text-blue-600 transition hover:bg-blue-50"
                     >
-                      View all developers
+                      {t("View all developers")}
                     </button>
                   </>
                 )}
@@ -521,7 +624,7 @@ function Dashboard() {
         <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
           <div className="min-w-0 space-y-5">
             {/* HERO */}
-            <section className="relative min-h-[300px] overflow-hidden rounded-2xl bg-slate-950 shadow-sm">
+            <section className="afridev-dashboard-hero relative min-h-[300px] overflow-hidden rounded-2xl bg-slate-950 shadow-sm">
               <img
                 src={heroImage}
                 alt=""
@@ -534,7 +637,7 @@ function Dashboard() {
               <div className="relative flex min-h-[300px] flex-col justify-center px-7 py-8 sm:px-9">
                 <p className="mb-4 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.2em] text-sky-300">
                   <Sparkles size={15} />
-                  Africa's developer exchange
+                  {t("Africa's developer exchange")}
                 </p>
 
                 <h2 className="afridev-display max-w-xl text-4xl font-extrabold leading-[0.98] tracking-[-0.035em] text-white sm:text-5xl">
@@ -542,8 +645,7 @@ function Dashboard() {
                 </h2>
 
                 <p className="mt-5 max-w-lg text-sm leading-6 text-slate-200 sm:text-base">
-                  A community of African developers connecting,
-                  collaborating and building a greater tomorrow.
+                  {t("A community of African developers connecting, collaborating and building a greater tomorrow.")}
                 </p>
 
                 <div className="mt-6 flex flex-wrap gap-3">
@@ -552,7 +654,7 @@ function Dashboard() {
                     onClick={() => navigate("/discover")}
                     className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-blue-950/30 transition hover:bg-blue-500"
                   >
-                    Find developers
+                    {t("Find developers")}
                     <ArrowRight size={16} />
                   </button>
 
@@ -561,40 +663,40 @@ function Dashboard() {
                     onClick={() => navigate("/exchange")}
                     className="inline-flex items-center gap-2 rounded-xl border border-white/25 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white backdrop-blur transition hover:bg-white/15"
                   >
-                    Exchange skills
+                    {t("Exchange skills")}
                   </button>
                 </div>
               </div>
             </section>
 
             {/* KPI CARDS */}
-            <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <section className="afridev-dashboard-kpis grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
               {[
                 {
-                  label: "Skill Matches",
+                  label: t("Skill Matches"),
                   value: stats.matches,
-                  caption: "Compatible opportunities",
+                  caption: t("Compatible opportunities"),
                   icon: Zap,
                   iconClass: "bg-blue-50 text-blue-600",
                 },
                 {
-                  label: "Active Exchanges",
+                  label: t("Active Exchanges"),
                   value: stats.exchanges,
-                  caption: "Currently in progress",
+                  caption: t("Currently in progress"),
                   icon: ArrowRightLeft,
                   iconClass: "bg-emerald-50 text-emerald-600",
                 },
                 {
                   label: "Projects",
                   value: stats.projects,
-                  caption: "Projects you own",
+                  caption: t("Projects you own"),
                   icon: FolderKanban,
                   iconClass: "bg-orange-50 text-orange-600",
                 },
                 {
-                  label: "My Network",
+                  label: t("My Network"),
                   value: stats.followers,
-                  caption: "Followers",
+                  caption: t("Followers"),
                   icon: Users,
                   iconClass: "bg-violet-50 text-violet-600",
                 },
@@ -611,7 +713,7 @@ function Dashboard() {
                       if (item.label === "Projects") navigate("/projects");
                       if (item.label === "My Network") navigate("/passport");
                     }}
-                    className="group rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md"
+                    className="afridev-dashboard-kpi group rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md"
                   >
                     <div className="flex items-start justify-between">
                       <span
@@ -644,16 +746,16 @@ function Dashboard() {
             </section>
 
             {/* LOWER GRID */}
-            <div className="grid gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
+            <div className="afridev-dashboard-lower grid gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
               {/* RECENT ACTIVITY */}
               <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
                 <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
                   <div>
                     <h2 className="font-extrabold tracking-[-0.015em] text-slate-950">
-                      Recent Activity
+                      {t("Recent Activity")}
                     </h2>
                     <p className="mt-0.5 text-xs text-slate-400">
-                      Latest activity around your account
+                      {t("Latest activity around your account")}
                     </p>
                   </div>
 
@@ -662,7 +764,7 @@ function Dashboard() {
                     onClick={() => navigate("/notifications")}
                     className="text-sm font-bold text-blue-600 hover:text-blue-700"
                   >
-                    View all
+                    {t("View all")}
                   </button>
                 </div>
 
@@ -671,10 +773,10 @@ function Dashboard() {
                     <div className="px-5 py-10 text-center">
                       <Bell className="mx-auto text-slate-300" size={28} />
                       <p className="mt-3 text-sm font-semibold text-slate-700">
-                        No recent activity yet
+                        {t("No recent activity yet")}
                       </p>
                       <p className="mt-1 text-xs text-slate-400">
-                        Matches, follows, messages and project updates will appear here.
+                        {t("Matches, follows, messages and project updates will appear here.")}
                       </p>
                     </div>
                   ) : (
@@ -699,15 +801,15 @@ function Dashboard() {
                         <div className="min-w-0 flex-1">
                           <div className="flex items-start justify-between gap-3">
                             <p className="truncate text-sm font-bold text-slate-900">
-                              {notification.title}
+                              {localizeDashboardNotificationTitle(notification)}
                             </p>
                             <span className="shrink-0 text-[11px] text-slate-400">
-                              {timeAgo(notification.created_at)}
+                              {timeAgo(notification.created_at, language === "FR" ? "fr" : "en")}
                             </span>
                           </div>
 
                           <p className="mt-1 line-clamp-2 text-sm leading-5 text-slate-500">
-                            {notification.message}
+                            {localizeDashboardNotificationMessage(notification)}
                           </p>
                         </div>
                       </button>
@@ -720,39 +822,39 @@ function Dashboard() {
               <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <div className="mb-4">
                   <h2 className="font-extrabold tracking-[-0.015em] text-slate-950">
-                    Quick Actions
+                    {t("Quick Actions")}
                   </h2>
                   <p className="mt-0.5 text-xs text-slate-400">
-                    Move your work forward
+                    {t("Move your work forward")}
                   </p>
                 </div>
 
                 <div className="space-y-3">
                   {[
                     {
-                      label: "Find Developers",
-                      text: "Discover and connect with African talent",
+                      label: t("Find Developers"),
+                      text: t("Discover and connect with African talent"),
                       icon: Search,
                       className: "bg-blue-600",
                       path: "/discover",
                     },
                     {
-                      label: "Create a Project",
-                      text: "Turn ideas into reality together",
+                      label: t("Create a Project"),
+                      text: t("Turn ideas into reality together"),
                       icon: Plus,
                       className: "bg-emerald-600",
                       path: "/projects",
                     },
                     {
-                      label: "Post a Problem",
-                      text: "Get help from the community",
+                      label: t("Post a Problem"),
+                      text: t("Get help from the community"),
                       icon: Lightbulb,
                       className: "bg-orange-500",
                       path: "/problems",
                     },
                     {
-                      label: "Exchange Skills",
-                      text: "Teach, learn and grow",
+                      label: t("Exchange Skills"),
+                      text: t("Teach, learn and grow"),
                       icon: ArrowRightLeft,
                       className: "bg-violet-600",
                       path: "/exchange",
@@ -822,7 +924,7 @@ function Dashboard() {
                     onClick={() => navigate("/passport")}
                     className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:border-blue-200 hover:text-blue-600"
                   >
-                    View Passport
+                    {t("View Passport")}
                   </button>
                 </div>
 
@@ -850,10 +952,10 @@ function Dashboard() {
               <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
                 <div>
                   <h2 className="font-extrabold tracking-[-0.015em] text-slate-950">
-                    Notifications
+                    {t("Notifications")}
                   </h2>
                   <p className="mt-0.5 text-xs text-slate-400">
-                    {unreadNotifications} unread
+                    {unreadNotifications} {t("unread")}
                   </p>
                 </div>
 
@@ -862,7 +964,7 @@ function Dashboard() {
                   onClick={() => navigate("/notifications")}
                   className="text-sm font-bold text-blue-600"
                 >
-                  View all
+                  {t("View all")}
                 </button>
               </div>
 
@@ -871,7 +973,7 @@ function Dashboard() {
                   <div className="px-5 py-8 text-center">
                     <Bell className="mx-auto text-slate-300" size={26} />
                     <p className="mt-2 text-sm font-semibold text-slate-600">
-                      No notifications
+                      {t("No notifications")}
                     </p>
                   </div>
                 ) : (
@@ -897,15 +999,15 @@ function Dashboard() {
                       <div className="min-w-0 flex-1">
                         <div className="flex items-start justify-between gap-2">
                           <p className="text-sm font-bold text-slate-900">
-                            {notification.title}
+                            {localizeDashboardNotificationTitle(notification)}
                           </p>
                           <span className="shrink-0 text-[10px] text-slate-400">
-                            {timeAgo(notification.created_at)}
+                            {timeAgo(notification.created_at, language === "FR" ? "fr" : "en")}
                           </span>
                         </div>
 
                         <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">
-                          {notification.message}
+                          {localizeDashboardNotificationMessage(notification)}
                         </p>
                       </div>
                     </button>
@@ -919,10 +1021,10 @@ function Dashboard() {
               <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
                 <div>
                   <h2 className="font-extrabold tracking-[-0.015em] text-slate-950">
-                    Suggested Developers
+                    {t("Suggested Developers")}
                   </h2>
                   <p className="mt-0.5 text-xs text-slate-400">
-                    People you may want to collaborate with
+                    {t("People you may want to collaborate with")}
                   </p>
                 </div>
 
@@ -931,7 +1033,7 @@ function Dashboard() {
                   onClick={() => navigate("/discover")}
                   className="text-sm font-bold text-blue-600"
                 >
-                  View all
+                  {t("View all")}
                 </button>
               </div>
 
@@ -940,7 +1042,7 @@ function Dashboard() {
                   <div className="px-5 py-8 text-center">
                     <Users className="mx-auto text-slate-300" size={26} />
                     <p className="mt-2 text-sm font-semibold text-slate-600">
-                      More developers will appear here
+                      {t("More developers will appear here")}
                     </p>
                   </div>
                 ) : (
@@ -1022,7 +1124,7 @@ function Dashboard() {
             <section className="rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50 via-white to-sky-50 p-5 shadow-sm">
               <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-blue-600">
                 <Sparkles size={14} />
-                Best skill match
+                {t("Best skill match")}
               </div>
 
               {match ? (
@@ -1058,7 +1160,7 @@ function Dashboard() {
 
                   <p className="mt-4 text-sm leading-6 text-slate-600">
                     {match.record.explanation ||
-                      "Your capabilities complement this developer's needs."}
+                      t("Your capabilities complement this developer's needs.")}
                   </p>
 
                   <button
@@ -1066,14 +1168,13 @@ function Dashboard() {
                     onClick={() => navigate("/discover")}
                     className="mt-4 w-full rounded-xl bg-blue-600 py-2.5 text-sm font-bold text-white hover:bg-blue-700"
                   >
-                    Explore match
+                    {t("Explore match")}
                   </button>
                 </>
               ) : (
                 <>
                   <p className="mt-3 text-sm leading-6 text-slate-600">
-                    Add more skills, offers and needs to unlock
-                    complementary developer matches.
+                    {t("Add more skills, offers and needs to unlock complementary developer matches.")}
                   </p>
 
                   <button
@@ -1081,7 +1182,7 @@ function Dashboard() {
                     onClick={() => navigate("/passport")}
                     className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-blue-600"
                   >
-                    Complete your Passport
+                    {t("Complete your Passport")}
                     <ArrowRight size={15} />
                   </button>
                 </>

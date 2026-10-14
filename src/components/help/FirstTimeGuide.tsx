@@ -1,0 +1,278 @@
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { BookOpen, ChevronLeft, ChevronRight, Download, GraduationCap, Languages, X } from "lucide-react";
+import { supabase } from "../../lib/supabase";
+
+type Language = "en" | "fr";
+
+type TourStep = {
+  title: Record<Language, string>;
+  description: Record<Language, string>;
+  path: string;
+  action: Record<Language, string>;
+};
+
+const tourSteps: TourStep[] = [
+  {
+    title: { en: "Your Dashboard", fr: "Votre tableau de bord" },
+    description: {
+      en: "Start here to review your activity and reach the main areas of AfriDev Exchange.",
+      fr: "Commencez ici pour consulter votre activité et accéder aux principales sections d’AfriDev Exchange.",
+    },
+    path: "/dashboard",
+    action: { en: "Open Dashboard", fr: "Ouvrir le tableau de bord" },
+  },
+  {
+    title: { en: "Build your Developer Passport", fr: "Créez votre Passeport Développeur" },
+    description: {
+      en: "Present your profile and real skills clearly. Add supporting evidence where the platform provides that workflow, and check each evidence status.",
+      fr: "Présentez clairement votre profil et vos compétences réelles. Ajoutez des preuves lorsque la plateforme le permet et consultez leur statut.",
+    },
+    path: "/passport",
+    action: { en: "Open Passport", fr: "Ouvrir le Passeport" },
+  },
+  {
+    title: { en: "Discover developers", fr: "Découvrez des développeurs" },
+    description: {
+      en: "Explore developer profiles and look for complementary skills, experience and interests before reaching out.",
+      fr: "Explorez les profils et recherchez des compétences, expériences et intérêts complémentaires avant de contacter quelqu’un.",
+    },
+    path: "/discover",
+    action: { en: "Discover Developers", fr: "Découvrir des développeurs" },
+  },
+  {
+    title: { en: "Exchange skills", fr: "Échangez des compétences" },
+    description: {
+      en: "Review offers and needs, check why a match may be relevant, and agree on expectations with the other developer before starting.",
+      fr: "Consultez les offres et les besoins, examinez la pertinence d’une mise en relation et convenez des attentes avant de commencer.",
+    },
+    path: "/exchange",
+    action: { en: "Open Exchange", fr: "Ouvrir les échanges" },
+  },
+  {
+    title: { en: "Collaborate on projects", fr: "Collaborez sur des projets" },
+    description: {
+      en: "Browse project opportunities, review requirements and coordinate your contributions using the tools available in each workspace.",
+      fr: "Parcourez les projets, consultez les exigences et coordonnez vos contributions avec les outils disponibles dans chaque espace.",
+    },
+    path: "/projects",
+    action: { en: "Browse Projects", fr: "Parcourir les projets" },
+  },
+  {
+    title: { en: "Keep communication organized", fr: "Organisez vos communications" },
+    description: {
+      en: "Use Messages for supported conversations and Notifications to follow platform events. Never send passwords or private API keys in messages.",
+      fr: "Utilisez Messages pour vos conversations et Notifications pour suivre l’activité. N’envoyez jamais de mots de passe ni de clés API privées.",
+    },
+    path: "/messages",
+    action: { en: "Open Messages", fr: "Ouvrir les messages" },
+  },
+];
+
+const manualUrl = "/AfriDev_Exchange_User_Manual_Bilingual_v1_1.pdf";
+const seenKey = (userId: string) => `afridev-first-tour-seen-v1:${userId}`;
+
+export default function FirstTimeGuide() {
+  const navigate = useNavigate();
+  const [open, setOpen] = useState(false);
+  const [stepIndex, setStepIndex] = useState(0);
+  const [language, setLanguage] = useState<Language>("en");
+  const [userId, setUserId] = useState<string | null>(null);
+
+  const step = tourSteps[stepIndex];
+  const progress = useMemo(
+    () => `${stepIndex + 1} / ${tourSteps.length}`,
+    [stepIndex]
+  );
+
+  useEffect(() => {
+    let active = true;
+
+    async function checkFirstVisit() {
+      const { data, error } = await supabase.auth.getUser();
+      if (!active || error || !data.user) return;
+
+      setUserId(data.user.id);
+      try {
+        const hasSeenTour = window.localStorage.getItem(seenKey(data.user.id));
+        if (!hasSeenTour) setOpen(true);
+      } catch {
+        // If storage is blocked, the guide still remains available from Help & Guides.
+      }
+    }
+
+    void checkFirstVisit();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  function markSeen() {
+    if (!userId) return;
+    try {
+      window.localStorage.setItem(seenKey(userId), "1");
+    } catch {
+      // The tour remains usable even if the browser disallows local storage.
+    }
+  }
+
+  function finishTour() {
+    markSeen();
+    setOpen(false);
+    setStepIndex(0);
+  }
+
+  function startTour() {
+    setStepIndex(0);
+    setLanguage("en");
+    setOpen(true);
+  }
+
+  function openSection() {
+    finishTour();
+    navigate(step.path);
+  }
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={startTour}
+        className="fixed bottom-4 right-4 z-40 inline-flex items-center gap-2 rounded-full bg-[#102A43] px-4 py-3 text-sm font-bold text-white shadow-xl transition hover:bg-blue-700 focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-300"
+        aria-label="Open Help and Guides"
+        title="Help & Guides"
+      >
+        <BookOpen size={18} />
+        <span>Help & Guides</span>
+      </button>
+
+      {open && (
+        <div
+          className="afridev-guide-motion-overlay fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/65 p-4 backdrop-blur-sm"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) finishTour();
+          }}
+        >
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="afridev-guide-title"
+            className="afridev-guide-motion-dialog w-full max-w-xl overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl"
+          >
+            <div className="bg-gradient-to-br from-[#102A43] to-blue-700 p-5 text-white sm:p-7">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/15">
+                    <GraduationCap size={24} />
+                  </span>
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-100">
+                      AfriDev Exchange
+                    </p>
+                    <h2 id="afridev-guide-title" className="mt-1 text-xl font-extrabold sm:text-2xl">
+                      {language === "en" ? "Welcome to AfriDev Exchange" : "Bienvenue sur AfriDev Exchange"}
+                    </h2>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={finishTour}
+                  className="rounded-xl p-2 text-white/80 transition hover:bg-white/10 hover:text-white"
+                  aria-label={language === "en" ? "Close guide" : "Fermer le guide"}
+                >
+                  <X size={20} />
+                </button>
+              </div>
+              <div className="mt-6 flex items-center justify-between gap-3 text-xs font-semibold text-blue-100">
+                <span>{language === "en" ? "QUICK TOUR" : "VISITE GUIDÉE"}</span>
+                <span>{progress}</span>
+              </div>
+              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/20">
+                <div
+                  className="h-full rounded-full bg-cyan-300 transition-all"
+                  style={{ width: `${((stepIndex + 1) / tourSteps.length) * 100}%` }}
+                />
+              </div>
+            </div>
+
+            <div className="afridev-guide-motion-content p-5 sm:p-7">
+              <div className="flex items-start justify-between gap-3">
+                <h3 className="text-xl font-extrabold text-slate-950">{step.title[language]}</h3>
+                <button
+                  type="button"
+                  onClick={() => setLanguage((current) => current === "en" ? "fr" : "en")}
+                  className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50"
+                >
+                  <Languages size={15} />
+                  {language === "en" ? "Français" : "English"}
+                </button>
+              </div>
+              <p className="mt-3 text-sm leading-6 text-slate-600">{step.description[language]}</p>
+
+              <div className="mt-6 rounded-2xl border border-blue-100 bg-blue-50/70 p-4">
+                <p className="text-sm font-semibold text-slate-800">
+                  {language === "en"
+                    ? "Tip: You can reopen this guide anytime from the Help & Guides button."
+                    : "Conseil : vous pouvez rouvrir ce guide à tout moment avec le bouton Aide et guides."}
+                </p>
+              </div>
+
+              <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <button
+                  type="button"
+                  onClick={finishTour}
+                  className="rounded-xl px-4 py-3 text-sm font-semibold text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+                >
+                  {language === "en" ? "Skip for now" : "Passer pour le moment"}
+                </button>
+                <div className="flex flex-wrap gap-2">
+                  <a
+                    href={manualUrl}
+                    download
+                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50"
+                  >
+                    <Download size={16} />
+                    {language === "en" ? "Download PDF" : "Télécharger le PDF"}
+                  </a>
+                  <button
+                    type="button"
+                    onClick={openSection}
+                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white hover:bg-blue-700"
+                  >
+                    {step.action[language]}
+                    <ChevronRight size={16} />
+                  </button>
+                </div>
+              </div>
+
+              <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setStepIndex((index) => Math.max(0, index - 1))}
+                  disabled={stepIndex === 0}
+                  className="inline-flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-35"
+                >
+                  <ChevronLeft size={16} />
+                  {language === "en" ? "Back" : "Précédent"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (stepIndex === tourSteps.length - 1) finishTour();
+                    else setStepIndex((index) => Math.min(tourSteps.length - 1, index + 1));
+                  }}
+                  className="rounded-lg px-3 py-2 text-sm font-bold text-blue-700 hover:bg-blue-50"
+                >
+                  {stepIndex === tourSteps.length - 1
+                    ? (language === "en" ? "Finish tour" : "Terminer")
+                    : (language === "en" ? "Next step" : "Étape suivante")}
+                </button>
+              </div>
+            </div>
+          </section>
+        </div>
+      )}
+    </>
+  );
+}

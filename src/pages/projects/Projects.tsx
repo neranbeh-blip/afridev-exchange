@@ -15,6 +15,7 @@ import type { FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 import { supabase } from "../../lib/supabase";
+import DeepLText from "../../components/layout/DeepLText";
 
 type ProjectStatus = "idea" | "open" | "in_progress" | "completed";
 type ApplicationStatus = "pending" | "accepted" | "rejected";
@@ -455,11 +456,11 @@ function Projects() {
       <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="text-sm font-semibold text-blue-600">
-            AFRIDEV NETWORK
+            <DeepLText text="AFRIDEV NETWORK" />
           </p>
 
           <h1 className="mt-1 text-3xl font-bold text-slate-950">
-            Projects
+            <DeepLText text="Projects" />
           </h1>
 
           <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
@@ -472,13 +473,13 @@ function Projects() {
               to="/projects"
               className="rounded-t-xl border-b-2 border-blue-700 px-4 py-3 text-sm font-semibold text-blue-700"
             >
-              Projects
+              <DeepLText text="Projects" />
             </Link>
             <Link
               to="/completed-projects"
               className="rounded-t-xl px-4 py-3 text-sm font-semibold text-slate-500 transition hover:text-blue-700"
             >
-              Completed Projects
+              <DeepLText text="Completed Projects" />
             </Link>
           </div>
         </div>
@@ -492,7 +493,7 @@ function Projects() {
           className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-700 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-800"
         >
           <Plus size={18} />
-          Create Project
+          <DeepLText text="Create Project" />
         </button>
       </div>
 
@@ -516,7 +517,7 @@ function Projects() {
           >
             {statusOptions.map((option) => (
               <option key={option.value} value={option.value}>
-                {option.label}
+                {<DeepLText text={option.label} />}
               </option>
             ))}
           </select>
@@ -524,14 +525,13 @@ function Projects() {
 
         <div className="mt-4 flex items-center gap-2 text-xs text-slate-500">
           <FolderKanban size={14} />
-          {filteredProjects.length} project
-          {filteredProjects.length === 1 ? "" : "s"} found
+          {filteredProjects.length} <DeepLText text={filteredProjects.length === 1 ? "project" : "projects"} /> <DeepLText text="found" />
         </div>
       </div>
 
       {error && (
         <div className="mt-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error}
+          {<DeepLText text={error} />}
         </div>
       )}
 
@@ -549,11 +549,11 @@ function Projects() {
           <FolderKanban className="mx-auto h-10 w-10 text-slate-300" />
 
           <h2 className="mt-4 font-semibold text-slate-900">
-            No projects found
+            <DeepLText text="No projects found" />
           </h2>
 
           <p className="mt-1 text-sm text-slate-500">
-            Create the first project or change your search filters.
+            <DeepLText text="Create the first project or change your search filters." />
           </p>
         </div>
       ) : (
@@ -642,13 +642,13 @@ function Projects() {
                       to={`/projects/${project.id}`}
                       className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
                     >
-                      {project.status === "completed"
+                      {<DeepLText text={project.status === "completed"
                         ? "View Completed Project"
                         : project.status === "idea"
                           ? "View Idea"
                           : application?.status === "pending" || application?.status === "rejected"
                             ? "View Application"
-                            : "View Project"}
+                            : "View Project"} />}
                       <ArrowRight size={16} />
                     </Link>
 
@@ -666,7 +666,7 @@ function Projects() {
                         ) : (
                           <Trash2 size={16} />
                         )}
-                        <span className="hidden sm:inline">Delete</span>
+                        <span className="hidden sm:inline"><DeepLText text="Delete" /></span>
                       </button>
                     )}
                   </div>
@@ -682,11 +682,11 @@ function Projects() {
                               : "bg-amber-50 text-amber-700"
                         }`}
                       >
-                        {application.status === "accepted"
+                        {<DeepLText text={application.status === "accepted"
                           ? "Accepted — Collaborating"
                           : application.status === "rejected"
                             ? "Application Rejected"
-                            : "Application Sent"}
+                            : "Application Sent"} />}
                       </span>
                     </div>
                   )}
@@ -700,7 +700,7 @@ function Projects() {
                           rel="noreferrer"
                           className="inline-flex items-center gap-1 font-medium text-slate-500 hover:text-blue-700"
                         >
-                          Repository
+                          <DeepLText text="Repository" />
                           <ExternalLink size={12} />
                         </a>
                       )}
@@ -712,7 +712,7 @@ function Projects() {
                           rel="noreferrer"
                           className="inline-flex items-center gap-1 font-medium text-slate-500 hover:text-blue-700"
                         >
-                          Demo
+                          <DeepLText text="Demo" />
                           <ExternalLink size={12} />
                         </a>
                       )}
@@ -731,13 +731,13 @@ function Projects() {
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-sm font-semibold text-blue-600">
-                  NEW PROJECT
+                  <DeepLText text="NEW PROJECT" />
                 </p>
                 <h2 className="mt-1 text-2xl font-bold text-slate-950">
-                  Create a project
+                  <DeepLText text="Create a project" />
                 </h2>
                 <p className="mt-1 text-sm text-slate-500">
-                  Publish an idea and invite developers to collaborate.
+                  <DeepLText text="Publish an idea and invite developers to collaborate." />
                 </p>
               </div>
 
@@ -753,7 +753,7 @@ function Projects() {
             <form onSubmit={createProject} className="mt-6 space-y-4">
               <div>
                 <label className="mb-1.5 block text-sm font-semibold text-slate-700">
-                  Project title
+                  <DeepLText text="Project title" />
                 </label>
                 <input
                   value={title}
@@ -765,7 +765,7 @@ function Projects() {
 
               <div>
                 <label className="mb-1.5 block text-sm font-semibold text-slate-700">
-                  Description
+                  <DeepLText text="Description" />
                 </label>
                 <textarea
                   value={description}
@@ -778,10 +778,10 @@ function Projects() {
 
               <div>
                 <label className="mb-1.5 block text-sm font-semibold text-slate-700">
-                  Required skills
+                  <DeepLText text="Required skills" />
                 </label>
                 <p className="mb-2 text-xs text-slate-500">
-                  Select the skills you need from collaborators.
+                  <DeepLText text="Select the skills you need from collaborators." />
                 </p>
 
                 <input
@@ -794,7 +794,7 @@ function Projects() {
                 <div className="max-h-40 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-2">
                   {filteredSkills.length === 0 ? (
                     <p className="px-2 py-3 text-xs text-slate-500">
-                      No skills found.
+                      <DeepLText text="No skills found." />
                     </p>
                   ) : (
                     <div className="grid gap-2 sm:grid-cols-2">
@@ -834,7 +834,7 @@ function Projects() {
 
               <div>
                 <label className="mb-2 block text-sm font-semibold text-slate-700">
-                  Project visibility
+                  <DeepLText text="Project visibility" />
                 </label>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <button
@@ -842,9 +842,9 @@ function Projects() {
                     onClick={() => setVisibility("public")}
                     className={`rounded-xl border p-4 text-left transition ${visibility === "public" ? "border-blue-500 bg-blue-50 ring-2 ring-blue-100" : "border-slate-200 bg-white hover:border-blue-200"}`}
                   >
-                    <p className="font-semibold text-slate-900">Public</p>
+                    <p className="font-semibold text-slate-900"><DeepLText text="Public" /></p>
                     <p className="mt-1 text-xs leading-5 text-slate-500">
-                      Visible to the AfriDev community and eligible for the Completed Projects showcase.
+                      <DeepLText text="Visible to the AfriDev community and eligible for the Completed Projects showcase." />
                     </p>
                   </button>
                   <button
@@ -852,9 +852,9 @@ function Projects() {
                     onClick={() => setVisibility("private")}
                     className={`rounded-xl border p-4 text-left transition ${visibility === "private" ? "border-blue-500 bg-blue-50 ring-2 ring-blue-100" : "border-slate-200 bg-white hover:border-blue-200"}`}
                   >
-                    <p className="font-semibold text-slate-900">Private</p>
+                    <p className="font-semibold text-slate-900"><DeepLText text="Private" /></p>
                     <p className="mt-1 text-xs leading-5 text-slate-500">
-                      Only the owner and authorized project members can access it.
+                      <DeepLText text="Only the owner and authorized project members can access it." />
                     </p>
                   </button>
                 </div>
@@ -863,16 +863,16 @@ function Projects() {
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="rounded-xl border border-blue-100 bg-blue-50/60 p-4">
                   <p className="text-sm font-semibold text-slate-800">
-                    Project starts as an Idea
+                    <DeepLText text="Project starts as an Idea" />
                   </p>
                   <p className="mt-2 text-xs leading-5 text-slate-600">
-                    New projects start in Idea status. After creation, the owner can move the project through Open, In progress, and finally Completed.
+                    <DeepLText text="New projects start in Idea status. After creation, the owner can move the project through Open, In progress, and finally Completed." />
                   </p>
                 </div>
 
                 <div>
                   <label className="mb-1.5 block text-sm font-semibold text-slate-700">
-                    Repository URL
+                    <DeepLText text="Repository URL" />
                   </label>
                   <input
                     value={repositoryUrl}
@@ -886,7 +886,7 @@ function Projects() {
 
               <div>
                 <label className="mb-1.5 block text-sm font-semibold text-slate-700">
-                  Demo URL <span className="font-normal text-slate-400">(optional)</span>
+                  <DeepLText text="Demo URL" /> <span className="font-normal text-slate-400">(optional)</span>
                 </label>
                 <input
                   value={demoUrl}
@@ -903,7 +903,7 @@ function Projects() {
                   onClick={() => setShowCreateModal(false)}
                   className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
                 >
-                  Cancel
+                  <DeepLText text="Cancel" />
                 </button>
 
                 <button
@@ -914,7 +914,7 @@ function Projects() {
                   {creating && (
                     <Loader2 size={16} className="animate-spin" />
                   )}
-                  {creating ? "Creating..." : "Create Project"}
+                  {creating ? <DeepLText text="Creating..." /> : <DeepLText text="Create Project" />}
                 </button>
               </div>
             </form>
@@ -941,7 +941,7 @@ function StatusBadge({ status }: { status: string }) {
     <span
       className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold capitalize ${config}`}
     >
-      {label}
+      {<DeepLText text={label} />}
     </span>
   );
 }

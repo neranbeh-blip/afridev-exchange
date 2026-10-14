@@ -23,6 +23,8 @@ import {
 
 import { supabase } from "../../lib/supabase";
 
+import DeepLText from "../../components/layout/DeepLText";
+
 type NetworkType = "followers" | "following";
 
 interface Profile {
@@ -447,6 +449,8 @@ export default function PublicPassport() {
           type: "follow",
           title: "New follower",
           message: `${currentUserDisplayName} started following you.`,
+          translation_key: "new_follower",
+          translation_params: { name: currentUserDisplayName },
           link: `/developer/${currentUserId}`,
         });
       }
@@ -624,6 +628,8 @@ export default function PublicPassport() {
           type: "follow",
           title: "New follower",
           message: `${currentUserDisplayName} started following you.`,
+          translation_key: "new_follower",
+          translation_params: { name: currentUserDisplayName },
           link: `/developer/${currentUserId}`,
         });
       }
@@ -637,7 +643,7 @@ export default function PublicPassport() {
       <div className="min-h-screen bg-slate-50 text-slate-950 flex items-center justify-center">
         <div className="text-center">
           <div className="w-10 h-10 border-2 border-blue-400 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-slate-500">Loading Developer Passport...</p>
+          <p className="text-slate-500"><DeepLText text={"Loading Developer Passport..."} /></p>
         </div>
       </div>
     );
@@ -649,17 +655,17 @@ export default function PublicPassport() {
         <div className="max-w-md w-full bg-white border border-slate-200 rounded-3xl p-8 text-center">
           <Users className="w-12 h-12 mx-auto text-slate-500 mb-4" />
           <h1 className="text-2xl font-bold mb-2">
-            Developer not found
+            <DeepLText text={"Developer not found"} />
           </h1>
           <p className="text-slate-500 mb-6">
-            {errorMessage || "This Developer Passport is unavailable."}
+            <DeepLText text={errorMessage || "This Developer Passport is unavailable."} />
           </p>
           <button
             onClick={() => navigate(-1)}
             className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 transition"
           >
             <ArrowLeft className="w-4 h-4" />
-            Go back
+            <DeepLText text={"Go back"} />
           </button>
         </div>
       </div>
@@ -673,10 +679,10 @@ export default function PublicPassport() {
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
           <div className="min-w-0">
             <p className="text-sm font-semibold text-blue-600">
-              Developer Identity
+              <DeepLText text={"Developer Identity"} />
             </p>
             <h1 className="mt-1 break-words text-3xl font-bold tracking-tight text-slate-950">
-              Developer Passport
+              <DeepLText text={"Developer Passport"} />
             </h1>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -686,7 +692,7 @@ export default function PublicPassport() {
               className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
             >
               <ArrowLeft className="h-4 w-4" />
-              Back
+              <DeepLText text={"Back"} />
             </button>
             {isOwnPassport ? (
               <button
@@ -694,7 +700,7 @@ export default function PublicPassport() {
                 onClick={() => navigate("/passport")}
                 className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-800"
               >
-                Edit Passport
+                <DeepLText text={"Edit Passport"} />
                 <ChevronRight className="h-4 w-4" />
               </button>
             ) : currentUserId ? (
@@ -705,7 +711,7 @@ export default function PublicPassport() {
                   className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-800"
                 >
                   <MessageCircle className="h-4 w-4" />
-                  Message
+                  <DeepLText text={"Message"} />
                 </button>
                 <button
                   type="button"
@@ -718,7 +724,7 @@ export default function PublicPassport() {
                   }`}
                 >
                   {isFollowing ? <UserCheck className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}
-                  {followLoading ? "Please wait..." : isFollowing ? "Following" : "Follow"}
+                  <DeepLText text={followLoading ? "Please wait..." : isFollowing ? "Following" : "Follow"} />
                 </button>
               </>
             ) : null}
@@ -773,7 +779,7 @@ export default function PublicPassport() {
                 )}
                 <span className="inline-flex items-center gap-1.5">
                   <Users size={15} className="shrink-0" />
-                  African Developer
+                  <DeepLText text={"African Developer"} />
                 </span>
               </div>
             </div>
@@ -781,7 +787,7 @@ export default function PublicPassport() {
 
           <div className="mt-6 border-t border-slate-100 pt-6">
             <p className="max-w-4xl break-words text-sm leading-7 text-slate-600">
-              {profile.bio || "This developer has not added a bio yet."}
+              {profile.bio || <DeepLText text={"This developer has not added a bio yet."} />}
             </p>
           </div>
 
@@ -789,17 +795,17 @@ export default function PublicPassport() {
             <div className="mt-5 flex flex-wrap gap-2 border-t border-slate-100 pt-5">
               {profile.github_url && (
                 <a href={profile.github_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700">
-                  GitHub <ExternalLink className="h-3.5 w-3.5" />
+                  <DeepLText text={"GitHub"} /> <ExternalLink className="h-3.5 w-3.5" />
                 </a>
               )}
               {profile.website_url && (
                 <a href={profile.website_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700">
-                  Website <ExternalLink className="h-3.5 w-3.5" />
+                  <DeepLText text={"Website"} /> <ExternalLink className="h-3.5 w-3.5" />
                 </a>
               )}
               {profile.linkedin_url && (
                 <a href={profile.linkedin_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700">
-                  LinkedIn <ExternalLink className="h-3.5 w-3.5" />
+                  <DeepLText text={"LinkedIn"} /> <ExternalLink className="h-3.5 w-3.5" />
                 </a>
               )}
             </div>
@@ -807,10 +813,10 @@ export default function PublicPassport() {
 
           <div className="mt-5 flex flex-wrap gap-2 border-t border-slate-100 pt-5">
             <button type="button" onClick={() => loadNetwork("followers")} className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm transition hover:border-blue-200 hover:bg-blue-50">
-              <span className="font-bold text-slate-900">{followerCount}</span> <span className="text-slate-500">Followers</span>
+              <span className="font-bold text-slate-900">{followerCount}</span> <span className="text-slate-500"><DeepLText text={"Followers"} /></span>
             </button>
             <button type="button" onClick={() => loadNetwork("following")} className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm transition hover:border-blue-200 hover:bg-blue-50">
-              <span className="font-bold text-slate-900">{followingCount}</span> <span className="text-slate-500">Following</span>
+              <span className="font-bold text-slate-900">{followingCount}</span> <span className="text-slate-500"><DeepLText text={"Following"} /></span>
             </button>
           </div>
         </div>
@@ -840,14 +846,14 @@ export default function PublicPassport() {
 
         <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div>
-            <h2 className="text-xl font-bold text-slate-950">Skills &amp; Capabilities</h2>
+            <h2 className="text-xl font-bold text-slate-950"><DeepLText text={"Skills & Capabilities"} /></h2>
           </div>
 
           {developerSkills.length === 0 ? (
             <div className="mt-6 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
               <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 text-blue-700"><CodeIcon /></div>
-              <h3 className="mt-4 font-semibold text-slate-900">No skills added yet</h3>
-              <p className="mx-auto mt-1 max-w-md text-sm text-slate-500">This developer has not added skills to their Passport yet.</p>
+              <h3 className="mt-4 font-semibold text-slate-900"><DeepLText text={"No skills added yet"} /></h3>
+              <p className="mx-auto mt-1 max-w-md text-sm text-slate-500"><DeepLText text={"This developer has not added skills to their Passport yet."} /></p>
             </div>
           ) : (
             <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -866,8 +872,8 @@ export default function PublicPassport() {
                     </div>
                     <div className="mt-4">
                       <div className="flex items-center justify-between gap-2 text-xs">
-                        <span className="text-slate-500">Proficiency</span>
-                        <span className="font-semibold capitalize text-blue-700">{proficiency}</span>
+                        <span className="text-slate-500"><DeepLText text={"Proficiency"} /></span>
+                        <span className="font-semibold capitalize text-blue-700"><DeepLText text={proficiency} /></span>
                       </div>
                       <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100">
                         <div className="h-full rounded-full bg-blue-600" style={{ width: `${getProficiencyWidth(proficiency)}%` }} />
@@ -882,15 +888,15 @@ export default function PublicPassport() {
 
         <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div>
-            <h2 className="text-xl font-bold text-slate-950">Skill Evidence</h2>
-            <p className="mt-1 text-sm text-slate-500">Evidence that helps others assess these skills and technical strengths.</p>
+            <h2 className="text-xl font-bold text-slate-950"><DeepLText text={"Skill Evidence"} /></h2>
+            <p className="mt-1 text-sm text-slate-500"><DeepLText text={"Evidence that helps others assess these skills and technical strengths."} /></p>
           </div>
 
           {evidence.length === 0 ? (
             <div className="mt-6 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
               <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 text-blue-700"><Link2 size={21} /></div>
-              <h3 className="mt-4 font-semibold text-slate-900">No evidence added yet</h3>
-              <p className="mx-auto mt-1 max-w-md text-sm text-slate-500">Evidence will appear here when this developer adds repositories, projects, certificates, or other proof of their skills.</p>
+              <h3 className="mt-4 font-semibold text-slate-900"><DeepLText text={"No evidence added yet"} /></h3>
+              <p className="mx-auto mt-1 max-w-md text-sm text-slate-500"><DeepLText text={"Evidence will appear here when this developer adds repositories, projects, certificates, or other proof of their skills."} /></p>
             </div>
           ) : (
             <div className="mt-6 space-y-4">
@@ -905,16 +911,16 @@ export default function PublicPassport() {
                           <div className="flex flex-wrap items-center gap-2">
                             <h3 className="break-words font-semibold text-slate-950">{item.title || "Skill evidence"}</h3>
                             {verified ? (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700"><CheckCircle2 size={13} />Verified</span>
+                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700"><CheckCircle2 size={13} /><DeepLText text={"Verified"} /></span>
                             ) : (
-                              <span className="rounded-full bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-700">Pending verification</span>
+                              <span className="rounded-full bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-700"><DeepLText text={"Pending verification"} /></span>
                             )}
                           </div>
-                          <p className="mt-1 text-xs font-medium uppercase tracking-wide text-blue-600">{formatEvidenceType(item.evidence_type || "github")}</p>
+                          <p className="mt-1 text-xs font-medium uppercase tracking-wide text-blue-600"><DeepLText text={formatEvidenceType(item.evidence_type || "github")} /></p>
                           {item.description && <p className="mt-2 break-words text-sm leading-6 text-slate-500">{item.description}</p>}
                         </div>
                       </div>
-                      {item.url && <a href={item.url} target="_blank" rel="noreferrer" className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-blue-50 hover:text-blue-700"><ExternalLink size={16} />View evidence</a>}
+                      {item.url && <a href={item.url} target="_blank" rel="noreferrer" className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-blue-50 hover:text-blue-700"><ExternalLink size={16} /><DeepLText text={"View evidence"} /></a>}
                     </div>
                   </div>
                 );
@@ -926,9 +932,9 @@ export default function PublicPassport() {
         <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <h2 className="text-xl font-bold text-slate-950">AfriDev Experience</h2>
+              <h2 className="text-xl font-bold text-slate-950"><DeepLText text={"AfriDev Experience"} /></h2>
             </div>
-            <div className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700"><ShieldCheck size={15} />Based on platform activity</div>
+            <div className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700"><ShieldCheck size={15} /><DeepLText text={"Based on platform activity"} /></div>
           </div>
 
           <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -942,18 +948,18 @@ export default function PublicPassport() {
 
         <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="mb-4">
-            <p className="text-sm font-semibold uppercase tracking-wider text-blue-600">Build history</p>
-            <h2 className="mt-1 text-xl font-bold text-slate-950">Projects</h2>
+            <p className="text-sm font-semibold uppercase tracking-wider text-blue-600"><DeepLText text={"Build history"} /></p>
+            <h2 className="mt-1 text-xl font-bold text-slate-950"><DeepLText text={"Projects"} /></h2>
           </div>
           {projects.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center"><BriefcaseBusiness size={32} className="mx-auto mb-3 text-slate-600" /><p className="text-sm text-slate-500">No public projects yet.</p></div>
+            <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center"><BriefcaseBusiness size={32} className="mx-auto mb-3 text-slate-600" /><p className="text-sm text-slate-500"><DeepLText text={"No public projects yet."} /></p></div>
           ) : (
             <div className="grid gap-4 md:grid-cols-2">
               {projects.map((project) => (
                 <div key={project.id} className="rounded-xl border border-slate-200 p-5 transition hover:border-blue-200 hover:shadow-sm">
-                  <div className="flex items-start justify-between gap-4"><div className="min-w-0"><h3 className="break-words font-semibold text-slate-950">{project.title}</h3>{project.status && <span className="mt-2 inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs capitalize text-slate-500">{project.status.replace("_", " ")}</span>}</div><button type="button" onClick={() => navigate(`/projects/${project.id}`)} className="rounded-lg bg-slate-100 p-2 transition hover:bg-blue-50 hover:text-blue-700" aria-label="View project"><ChevronRight size={16} /></button></div>
+                  <div className="flex items-start justify-between gap-4"><div className="min-w-0"><h3 className="break-words font-semibold text-slate-950">{project.title}</h3>{project.status && <span className="mt-2 inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs capitalize text-slate-500"><DeepLText text={project.status.replace("_", " ")} /></span>}</div><button type="button" onClick={() => navigate(`/projects/${project.id}`)} className="rounded-lg bg-slate-100 p-2 transition hover:bg-blue-50 hover:text-blue-700" aria-label="View project"><ChevronRight size={16} /></button></div>
                   {project.description && <p className="mt-4 line-clamp-3 text-sm leading-6 text-slate-500">{project.description}</p>}
-                  <div className="mt-4 flex flex-wrap gap-2">{project.repository_url && <a href={project.repository_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100"><ExternalLink size={13} />Repository</a>}{project.demo_url && <a href={project.demo_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100"><Globe2 size={13} />Live Demo</a>}</div>
+                  <div className="mt-4 flex flex-wrap gap-2">{project.repository_url && <a href={project.repository_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100"><ExternalLink size={13} /><DeepLText text={"Repository"} /></a>}{project.demo_url && <a href={project.demo_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100"><Globe2 size={13} /><DeepLText text={"Live Demo"} /></a>}</div>
                 </div>
               ))}
             </div>
@@ -962,8 +968,8 @@ export default function PublicPassport() {
 
         {!isOwnPassport && currentUserId && (
           <section className="mt-6 rounded-2xl border border-blue-100 bg-blue-50 p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-5">
-            <div><h2 className="text-xl font-bold text-slate-950">Want to work together?</h2><p className="mt-1 text-slate-500">Connect with this developer through AfriDev Exchange.</p></div>
-            <div className="flex flex-wrap gap-2"><button onClick={() => navigate(`/messages?developer=${encodeURIComponent(developerId || "")}`)} className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-700 px-5 py-3 font-semibold text-white transition hover:bg-blue-800"><MessageCircle className="h-4 w-4" />Message</button><button onClick={() => navigate("/discover")} className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 font-semibold text-slate-700 transition hover:bg-slate-50"><BriefcaseBusiness className="h-4 w-4" />Discover Exchanges</button></div>
+            <div><h2 className="text-xl font-bold text-slate-950"><DeepLText text={"Want to work together?"} /></h2><p className="mt-1 text-slate-500"><DeepLText text={"Connect with this developer through AfriDev Exchange."} /></p></div>
+            <div className="flex flex-wrap gap-2"><button onClick={() => navigate(`/messages?developer=${encodeURIComponent(developerId || "")}`)} className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-700 px-5 py-3 font-semibold text-white transition hover:bg-blue-800"><MessageCircle className="h-4 w-4" /><DeepLText text={"Message"} /></button><button onClick={() => navigate("/discover")} className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 font-semibold text-slate-700 transition hover:bg-slate-50"><BriefcaseBusiness className="h-4 w-4" /><DeepLText text={"Discover Exchanges"} /></button></div>
           </section>
         )}
       </main>
@@ -981,13 +987,13 @@ export default function PublicPassport() {
             <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200">
               <div>
                 <h2 className="text-xl font-bold">
-                  {networkOpen === "followers"
+                  <DeepLText text={networkOpen === "followers"
                     ? "Followers"
-                    : "Following"}
+                    : "Following"} />
                 </h2>
 
                 <p className="text-xs text-slate-500 mt-1">
-                  {networkProfiles.length} developer
+                  {networkProfiles.length} <DeepLText text={"developer"} />
                   {networkProfiles.length === 1
                     ? ""
                     : "s"}
@@ -1007,14 +1013,14 @@ export default function PublicPassport() {
                 <div className="py-12 text-center">
                   <div className="w-8 h-8 border-2 border-blue-400 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
                   <p className="text-slate-500 text-sm">
-                    Loading developers...
+                    <DeepLText text={"Loading developers..."} />
                   </p>
                 </div>
               ) : networkProfiles.length === 0 ? (
                 <div className="py-12 text-center">
                   <Users className="w-10 h-10 mx-auto text-slate-700 mb-3" />
                   <p className="text-slate-500">
-                    No developers here yet.
+                    <DeepLText text={"No developers here yet."} />
                   </p>
                 </div>
               ) : (
@@ -1100,9 +1106,9 @@ export default function PublicPassport() {
                                 : "border-blue-500 bg-blue-600 text-white hover:bg-blue-500"
                             }`}
                           >
-                            {person.isFollowing
+                            <DeepLText text={person.isFollowing
                               ? "Following"
-                              : "Follow"}
+                              : "Follow"} />
                           </button>
                         )}
                     </div>
@@ -1120,9 +1126,9 @@ export default function PublicPassport() {
 function SignalCard({ icon, label, value, description }: { icon: ReactNode; label: string; value: number; description: string }) {
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 text-blue-700">{icon}</div><span className="text-sm font-semibold text-slate-600">{label}</span></div>
+      <div className="flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 text-blue-700">{icon}</div><span className="text-sm font-semibold text-slate-600"><DeepLText text={label} /></span></div>
       <p className="mt-5 text-3xl font-bold text-slate-950">{value}</p>
-      <p className="mt-1 text-sm leading-5 text-slate-500">{description}</p>
+      <p className="mt-1 text-sm leading-5 text-slate-500"><DeepLText text={description} /></p>
     </div>
   );
 }
@@ -1130,9 +1136,9 @@ function SignalCard({ icon, label, value, description }: { icon: ReactNode; labe
 function ExperienceCard({ icon, label, value, description }: { icon: ReactNode; label: string; value: number; description: string }) {
   return (
     <div className="rounded-xl border border-slate-200 p-5">
-      <div className="flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 text-blue-700">{icon}</div><span className="text-sm font-medium text-slate-500">{label}</span></div>
+      <div className="flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 text-blue-700">{icon}</div><span className="text-sm font-medium text-slate-500"><DeepLText text={label} /></span></div>
       <p className="mt-5 text-3xl font-bold text-slate-950">{value}</p>
-      <p className="mt-1 text-sm text-slate-500">{description}</p>
+      <p className="mt-1 text-sm text-slate-500"><DeepLText text={description} /></p>
     </div>
   );
 }

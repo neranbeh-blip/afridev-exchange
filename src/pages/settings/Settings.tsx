@@ -14,6 +14,7 @@ import {
 import { useEffect, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
+import DeepLText from "../../components/layout/DeepLText";
 
 type Profile = {
   id: string;
@@ -90,64 +91,6 @@ const africanCountries = [
   "Zimbabwe",
 ];
 
-/*
- * Languages commonly spoken across Africa.
- *
- * The list includes major official/national languages and widely spoken
- * indigenous/regional languages. It is intentionally broader than a list
- * of official state languages because AfriDev is intended for developers
- * across the continent.
- */
-const africanLanguages = [
-  "Afrikaans",
-  "Akan",
-  "Amharic",
-  "Arabic",
-  "Bambara",
-  "Berber / Amazigh",
-  "Chewa / Chichewa",
-  "Comorian",
-  "Dinka",
-  "English",
-  "Ewe",
-  "Fang",
-  "Fula / Fulfulde",
-  "Ga",
-  "Ganda / Luganda",
-  "Gikuyu / Kikuyu",
-  "Hausa",
-  "Igbo",
-  "Kinyarwanda",
-  "Kirundi",
-  "Kongo / Kikongo",
-  "Krio",
-  "Lingala",
-  "Luo",
-  "Malagasy",
-  "Mandinka",
-  "Ndebele",
-  "Oromo",
-  "Portuguese",
-  "Shona",
-  "Somali",
-  "Sotho / Sesotho",
-  "Spanish",
-  "Swahili / Kiswahili",
-  "Tigrinya",
-  "Tsonga / Xitsonga",
-  "Tswana / Setswana",
-  "Tumbuka",
-  "Twi",
-  "Venda / Tshivenda",
-  "Wolof",
-  "Xhosa",
-  "Yoruba",
-  "Zulu",
-  "French",
-  "Italian",
-  "German",
-  "Dutch",
-];
 
 function FieldLabel({
   children,
@@ -189,7 +132,6 @@ function Settings() {
   const [country, setCountry] = useState("Cameroon");
   const [city, setCity] = useState("");
   const [timezone, setTimezone] = useState("Africa/Douala");
-  const [language, setLanguage] = useState("English");
   const [githubUrl, setGithubUrl] = useState("");
   const [linkedinUrl, setLinkedinUrl] = useState("");
   const [websiteUrl, setWebsiteUrl] = useState("");
@@ -406,17 +348,6 @@ function Settings() {
       setWebsiteUrl(loaded.website_url ?? "");
       setYearsExperience(String(loaded.years_experience ?? 0));
 
-      /*
-       * Language is currently stored locally because the existing
-       * profiles schema does not contain a language column.
-       *
-       * The preference is still persistent on this device.
-       */
-      const savedLanguage = window.localStorage.getItem(
-        `afridev-language-${user.id}`
-      );
-
-      setLanguage(savedLanguage || "English");
       setAvailability(loaded.availability ?? "available");
     } catch (err) {
       console.error("Settings loading error:", err);
@@ -439,6 +370,7 @@ function Settings() {
     setSuccess(message);
     window.setTimeout(() => setSuccess(""), 3500);
   }
+
 
   async function saveProfile(event: React.FormEvent) {
     event.preventDefault();
@@ -490,16 +422,7 @@ function Settings() {
 
       if (updateError) throw updateError;
 
-      /*
-       * Save the selected language persistently on the current device.
-       * This does not require a database migration.
-       */
-      window.localStorage.setItem(
-        `afridev-language-${user.id}`,
-        language
-      );
-
-      showSuccess("Profile and language settings saved successfully.");
+      showSuccess("Profile settings saved successfully.");
     } catch (err) {
       console.error("Profile settings save error:", err);
       setError(
@@ -584,16 +507,15 @@ function Settings() {
       <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-8">
         <div className="mb-6">
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-600">
-            Account control
+            <DeepLText text={"Account control"} />
           </p>
 
           <h1 className="mt-1 text-3xl font-extrabold tracking-tight text-slate-950">
-            Settings
+            <DeepLText text={"Settings"} />
           </h1>
 
           <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
-            Manage your developer identity, language preference, account
-            security and profile information used across AfriDev Exchange.
+            <DeepLText text={"Manage your developer identity, language preference, account\n            security and profile information used across AfriDev Exchange."} />
           </p>
         </div>
 
@@ -622,7 +544,7 @@ function Settings() {
               }`}
             >
               <UserRound size={18} />
-              Profile & Identity
+              <DeepLText text={"Profile & Identity"} />
             </button>
 
             <button
@@ -635,7 +557,7 @@ function Settings() {
               }`}
             >
               <ShieldCheck size={18} />
-              Account & Security
+              <DeepLText text={"Account & Security"} />
             </button>
 
             <div className="mt-4 border-t border-slate-100 pt-3">
@@ -645,7 +567,7 @@ function Settings() {
                 className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-semibold text-slate-600 hover:bg-slate-50 hover:text-blue-600"
               >
                 <ExternalLink size={17} />
-                View Developer Passport
+                <DeepLText text={"View Developer Passport"} />
               </button>
             </div>
           </aside>
@@ -662,12 +584,11 @@ function Settings() {
 
                       <div>
                         <h2 className="font-extrabold text-slate-950">
-                          Developer identity
+                          <DeepLText text={"Developer identity"} />
                         </h2>
 
                         <p className="mt-1 text-sm text-slate-500">
-                          This information appears across your Passport and
-                          collaboration surfaces.
+                          <DeepLText text={"This information appears across your Passport and\n                          collaboration surfaces."} />
                         </p>
                       </div>
                     </div>
@@ -675,7 +596,7 @@ function Settings() {
 
                   <div className="grid gap-5 p-5 sm:grid-cols-2 sm:p-6">
                     <div>
-                      <FieldLabel>Full name</FieldLabel>
+                      <FieldLabel><DeepLText text={"Full name"} /></FieldLabel>
                       <input
                         value={fullName}
                         onChange={(event) => setFullName(event.target.value)}
@@ -685,7 +606,7 @@ function Settings() {
                     </div>
 
                     <div>
-                      <FieldLabel>Username</FieldLabel>
+                      <FieldLabel><DeepLText text={"Username"} /></FieldLabel>
 
                       <div className="relative">
                         <AtSign
@@ -703,7 +624,7 @@ function Settings() {
                     </div>
 
                     <div className="sm:col-span-2">
-                      <FieldLabel optional>Bio</FieldLabel>
+                      <FieldLabel optional><DeepLText text={"Bio"} /></FieldLabel>
 
                       <textarea
                         value={bio}
@@ -730,12 +651,11 @@ function Settings() {
 
                       <div>
                         <h2 className="font-extrabold text-slate-950">
-                          Language & location
+                          <DeepLText text={"Location"} />
                         </h2>
 
                         <p className="mt-1 text-sm text-slate-500">
-                          Choose the language you prefer to use on AfriDev and
-                          tell other developers where you are based.
+                          <DeepLText text={"Tell other developers where you are based."} />
                         </p>
                       </div>
                     </div>
@@ -743,28 +663,7 @@ function Settings() {
 
                   <div className="grid gap-5 p-5 sm:grid-cols-2 sm:p-6">
                     <div>
-                      <FieldLabel>Select language</FieldLabel>
-
-                      <select
-                        value={language}
-                        onChange={(event) => setLanguage(event.target.value)}
-                        className={inputClassName()}
-                      >
-                        {africanLanguages.map((item) => (
-                          <option key={item} value={item}>
-                            {item}
-                          </option>
-                        ))}
-                      </select>
-
-                      <p className="mt-2 text-xs leading-5 text-slate-400">
-                        Includes major African official, national and widely
-                        spoken regional languages.
-                      </p>
-                    </div>
-
-                    <div>
-                      <FieldLabel>Country</FieldLabel>
+                      <FieldLabel><DeepLText text={"Country"} /></FieldLabel>
 
                       <select
                         value={country}
@@ -773,14 +672,14 @@ function Settings() {
                       >
                         {africanCountries.map((item) => (
                           <option key={item} value={item}>
-                            {item}
+                            <DeepLText text={item} />
                           </option>
                         ))}
                       </select>
                     </div>
 
                     <div>
-                      <FieldLabel optional>City</FieldLabel>
+                      <FieldLabel optional><DeepLText text={"City"} /></FieldLabel>
 
                       <input
                         value={city}
@@ -791,7 +690,7 @@ function Settings() {
                     </div>
 
                     <div>
-                      <FieldLabel>Timezone</FieldLabel>
+                      <FieldLabel><DeepLText text={"Timezone"} /></FieldLabel>
 
                       <select
                         value={timezone}
@@ -814,7 +713,7 @@ function Settings() {
                     </div>
 
                     <div>
-                      <FieldLabel>Availability</FieldLabel>
+                      <FieldLabel><DeepLText text={"Availability"} /></FieldLabel>
 
                       <select
                         value={availability}
@@ -829,19 +728,19 @@ function Settings() {
                         className={inputClassName()}
                       >
                         <option value="available">
-                          Available for collaboration
+                          <DeepLText text={"Available for collaboration"} />
                         </option>
 
-                        <option value="busy">Busy</option>
+                        <option value="busy"><DeepLText text={"Busy"} /></option>
 
                         <option value="unavailable">
-                          Not currently available
+                          <DeepLText text={"Not currently available"} />
                         </option>
                       </select>
                     </div>
 
                     <div>
-                      <FieldLabel>Years of experience</FieldLabel>
+                      <FieldLabel><DeepLText text={"Years of experience"} /></FieldLabel>
 
                       <input
                         type="number"
@@ -866,12 +765,11 @@ function Settings() {
 
                       <div>
                         <h2 className="font-extrabold text-slate-950">
-                          Professional links
+                          <DeepLText text={"Professional links"} />
                         </h2>
 
                         <p className="mt-1 text-sm text-slate-500">
-                          Add the profiles and portfolio links you want other
-                          developers to discover.
+                          <DeepLText text={"Add the profiles and portfolio links you want other\n                          developers to discover."} />
                         </p>
                       </div>
                     </div>
@@ -879,7 +777,7 @@ function Settings() {
 
                   <div className="grid gap-5 p-5 sm:grid-cols-2 sm:p-6">
                     <div>
-                      <FieldLabel optional>GitHub</FieldLabel>
+                      <FieldLabel optional><DeepLText text={"GitHub"} /></FieldLabel>
 
                       <div className="relative">
                         <Code2
@@ -898,7 +796,7 @@ function Settings() {
                     </div>
 
                     <div>
-                      <FieldLabel optional>LinkedIn</FieldLabel>
+                      <FieldLabel optional><DeepLText text={"LinkedIn"} /></FieldLabel>
 
                       <div className="relative">
                         <ExternalLink
@@ -919,7 +817,7 @@ function Settings() {
                     </div>
 
                     <div className="sm:col-span-2">
-                      <FieldLabel optional>Personal website</FieldLabel>
+                      <FieldLabel optional><DeepLText text={"Personal website"} /></FieldLabel>
 
                       <input
                         type="url"
@@ -964,18 +862,18 @@ function Settings() {
 
                       <div>
                         <h2 className="font-extrabold text-slate-950">
-                          Account
+                          <DeepLText text={"Account"} />
                         </h2>
 
                         <p className="mt-1 text-sm text-slate-500">
-                          Your authenticated account information.
+                          <DeepLText text={"Your authenticated account information."} />
                         </p>
                       </div>
                     </div>
                   </div>
 
                   <div className="p-5 sm:p-6">
-                    <FieldLabel>Email address</FieldLabel>
+                    <FieldLabel><DeepLText text={"Email address"} /></FieldLabel>
 
                     <input
                       value={email}
@@ -984,7 +882,7 @@ function Settings() {
                     />
 
                     <p className="mt-2 text-xs text-slate-400">
-                      Your login email is managed by Supabase Authentication.
+                      <DeepLText text={"Your login email is managed by Supabase Authentication."} />
                     </p>
                   </div>
                 </section>
@@ -1001,12 +899,11 @@ function Settings() {
 
                       <div>
                         <h2 className="font-extrabold text-slate-950">
-                          Change password
+                          <DeepLText text={"Change password"} />
                         </h2>
 
                         <p className="mt-1 text-sm text-slate-500">
-                          Use at least 8 characters and keep your password
-                          unique to AfriDev.
+                          <DeepLText text={"Use at least 8 characters and keep your password\n                          unique to AfriDev."} />
                         </p>
                       </div>
                     </div>
@@ -1014,7 +911,7 @@ function Settings() {
 
                   <div className="grid gap-5 p-5 sm:grid-cols-2 sm:p-6">
                     <div>
-                      <FieldLabel>New password</FieldLabel>
+                      <FieldLabel><DeepLText text={"New password"} /></FieldLabel>
 
                       <input
                         type="password"
@@ -1029,7 +926,7 @@ function Settings() {
                     </div>
 
                     <div>
-                      <FieldLabel>Confirm new password</FieldLabel>
+                      <FieldLabel><DeepLText text={"Confirm new password"} /></FieldLabel>
 
                       <input
                         type="password"
@@ -1067,12 +964,11 @@ function Settings() {
 
                       <div>
                         <h2 className="font-extrabold text-slate-950">
-                          Two-factor authentication
+                          <DeepLText text={"Two-factor authentication"} />
                         </h2>
 
                         <p className="mt-1 text-sm text-slate-500">
-                          Add an authenticator app as an extra security layer
-                          when signing in to AfriDev Exchange.
+                          <DeepLText text={"Add an authenticator app as an extra security layer\n                          when signing in to AfriDev Exchange."} />
                         </p>
                       </div>
                     </div>
@@ -1082,7 +978,7 @@ function Settings() {
                     {mfaLoading ? (
                       <div className="flex items-center gap-3 text-sm text-slate-500">
                         <div className="h-5 w-5 animate-spin rounded-full border-2 border-slate-200 border-t-blue-600" />
-                        Checking your security status...
+                        <DeepLText text={"Checking your security status..."} />
                       </div>
                     ) : mfaFactorId && !mfaQrCode ? (
                       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -1090,13 +986,12 @@ function Settings() {
                           <div className="flex items-center gap-2">
                             <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
                             <p className="font-bold text-slate-950">
-                              Authenticator enabled
+                              <DeepLText text={"Authenticator enabled"} />
                             </p>
                           </div>
 
                           <p className="mt-2 text-sm leading-6 text-slate-500">
-                            Your account has an active verified TOTP
-                            authenticator factor.
+                            <DeepLText text={"Your account has an active verified TOTP\n                            authenticator factor."} />
                           </p>
                         </div>
 
@@ -1115,7 +1010,7 @@ function Settings() {
                       <div className="grid gap-6 lg:grid-cols-[220px_minmax(0,1fr)]">
                         <div className="flex flex-col items-center rounded-2xl border border-slate-200 bg-slate-50 p-4">
                           <p className="mb-3 text-xs font-bold uppercase tracking-[0.12em] text-slate-500">
-                            Scan with your app
+                            <DeepLText text={"Scan with your app"} />
                           </p>
 
                           <img
@@ -1134,9 +1029,7 @@ function Settings() {
                           </div>
 
                           <p className="mt-2 text-sm leading-6 text-slate-500">
-                            Scan the QR code with Google Authenticator,
-                            Microsoft Authenticator, 1Password or another
-                            compatible TOTP app.
+                            <DeepLText text={"Scan the QR code with Google Authenticator,\n                            Microsoft Authenticator, 1Password or another\n                            compatible TOTP app."} />
                           </p>
 
                           <p className="mt-4 text-xs font-bold text-slate-500">
@@ -1152,7 +1045,7 @@ function Settings() {
                             className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-end"
                           >
                             <div className="flex-1">
-                              <FieldLabel>6-digit verification code</FieldLabel>
+                              <FieldLabel><DeepLText text={"6-digit verification code"} /></FieldLabel>
                               <input
                                 inputMode="numeric"
                                 autoComplete="one-time-code"
@@ -1189,13 +1082,11 @@ function Settings() {
                       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                         <div>
                           <p className="font-bold text-slate-950">
-                            Protect your account with 2FA
+                            <DeepLText text={"Protect your account with 2FA"} />
                           </p>
 
                           <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
-                            Use a time-based authenticator code in addition to
-                            your password. This helps protect your account if
-                            your password is ever exposed.
+                            <DeepLText text={"Use a time-based authenticator code in addition to\n                            your password. This helps protect your account if\n                            your password is ever exposed."} />
                           </p>
                         </div>
 
@@ -1224,12 +1115,11 @@ function Settings() {
 
                       <div>
                         <h2 className="font-extrabold text-slate-950">
-                          Recovery & contact
+                          <DeepLText text={"Recovery & contact"} />
                         </h2>
 
                         <p className="mt-1 text-sm text-slate-500">
-                          Keep your account recovery information visible and
-                          up to date.
+                          <DeepLText text={"Keep your account recovery information visible and\n                          up to date."} />
                         </p>
                       </div>
                     </div>
@@ -1237,28 +1127,26 @@ function Settings() {
 
                   <div className="grid gap-5 p-5 sm:grid-cols-2 sm:p-6">
                     <div>
-                      <FieldLabel>Account email</FieldLabel>
+                      <FieldLabel><DeepLText text={"Account email"} /></FieldLabel>
                       <input
                         value={email}
                         readOnly
                         className={`${inputClassName()} bg-slate-50 text-slate-500`}
                       />
                       <p className="mt-2 text-xs leading-5 text-slate-400">
-                        Email verification and password recovery are handled
-                        by Supabase Authentication.
+                        <DeepLText text={"Email verification and password recovery are handled\n                        by Supabase Authentication."} />
                       </p>
                     </div>
 
                     <div>
-                      <FieldLabel>Phone</FieldLabel>
+                      <FieldLabel><DeepLText text={"Phone"} /></FieldLabel>
                       <input
                         value={phone || "No phone number linked"}
                         readOnly
                         className={`${inputClassName()} bg-slate-50 text-slate-500`}
                       />
                       <p className="mt-2 text-xs leading-5 text-slate-400">
-                        A phone number is shown here only when one is linked to
-                        your authenticated account.
+                        <DeepLText text={"A phone number is shown here only when one is linked to\n                        your authenticated account."} />
                       </p>
                     </div>
                   </div>
@@ -1268,11 +1156,11 @@ function Settings() {
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                       <h2 className="font-extrabold text-slate-950">
-                        Sign out of AfriDev
+                        <DeepLText text={"Sign out of AfriDev"} />
                       </h2>
 
                       <p className="mt-1 text-sm text-slate-600">
-                        End your current authenticated session on this device.
+                        <DeepLText text={"End your current authenticated session on this device."} />
                       </p>
                     </div>
 
